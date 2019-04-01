@@ -1,5 +1,4 @@
-import pytube, os, sys, io
-curdir=os.path.abspath(os.path.dirname(__file__))
+import pytube, os, sys, io, mutagen
 def singvid(link):
 	link=link.split("&")[0]
 	print(link)
@@ -92,26 +91,40 @@ def strip(s,i=0):
 	if i==0:
 		if "\u2020" in s:
 			i,s=s.split("\u2020")
-		else:
-			while i in files:
-				i+=1
 		return s,i
 	else:
 		return str(i)+"\u2020"+s
-files={}
-for dirpath, dirnames, filenames in os.walk(curdir):
-	for f in filenames:
-		name,i=strip(os.path.splitext(f)[0])
-		files[i]=name
-link=input("Link please. (Single video or full playlist)\n")
-if "/watch?v=" in link:
-	singvid(link)
-elif "/playlist?list=" in link:
-	try:
-		playlist(link,files)
-	except KeyboardInterrupt:
-		pass
-	finally:
-		print("\nDownloaded: "+str(stats[True])+"\nExisting: "+str(stats[None])+"\nFailed: "+str(stats[False]))
-else:
-	raise ValueError("Invalid link type")
+def main():
+	global files, curdir
+	curdir=os.path.abspath(os.path.dirname(__file__))
+	files={}
+	for dirpath, dirnames, filenames in os.walk(curdir):
+		for f in filenames:
+			name,i=strip(os.path.splitext(f)[0])
+			try:
+				i=mutagen.File(dirpath+"/"+f)["description"][0]
+			except TypeError:
+				pass
+			except KeyError:
+				pass
+			if i!=0:
+				files[i]=name
+	link=None
+	for arg in sys.argv:
+		if "/watch?v=" in arg or "/playlist?list=" in arg:
+			link=arg
+	if link==None:
+		link=input("Link please. (Single video or full playlist)\n")
+	if "/watch?v=" in link:
+		singvid(link)
+	elif "/playlist?list=" in link:
+		try:
+			playlist(link,files)
+		except KeyboardInterrupt:
+			pass
+		finally:
+			print("\nDownloaded: "+str(stats[True])+"\nExisting: "+str(stats[None])+"\nFailed: "+str(stats[False]))
+	else:
+		raise ValueError("Invalid link type")
+if __name__=="__main__":
+	main()
