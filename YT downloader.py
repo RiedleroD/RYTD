@@ -1,45 +1,35 @@
 import pytube, os, sys, io, mutagen, json
-def singvid(link):
-	link=link.split("&")[0]
-	print(link)
-	yt=Vid(link)
-	streams=yt.streams
-	print("All streams:\n"+str(streams.all()))
-	astreams=streams.filter(type="audio")
-	print("Audio streams:\n"+str(astreams.all()))
-	astream=astreams.first()
-	print("Selected stream:\n"+str(astream))
-	try:
-		astream.download(output_path=curdir)
-	except AttributeError as e:
-		if not astreams.all()==[]:
-			raise e
-	if astreams.all()==[]:
-		raise Exception("Could not download it because no audio streams were found")
-	sys.stdout.write("Finished"+" "*50+"\r")
 class Vid(pytube.YouTube):
 	def ineed(self):
 		self.name=self.title
 		self.i=self.video_id
+def singvid(link):
+	link=link.split("&")[0]
+	print(link)
+	yt=Vid(link)
+	yt.ineed()
+	print(yt.name)
+	streams=yt.streams
+	print("All streams:\n",streams.all())
+	stream=streams.first()
+	print("Selected Stream:\n",stream)
+	stream.download(output_path=conf.curdir,filename=strip(yt.title,yt.i))
+	print("Finished")
 def stuff(vid):
 	vid.ineed()
 	sys.stdout.write("\033[s"+strip(vid.title)[0])
 	sys.stdout.flush()
-	if (not vid.i in conf.files) or ("--overwrite" in sys.argv):
-		try:	
-			vid.streams.filter(type="audio").first().download(output_path=conf.curdir,filename=strip(vid.title,vid.i))
-		except Exception as e:
-			if e is KeyboardInterrupt:
-				quit()
-			else:
-				print(" \033[7m\033[31m[Failed]\033[0m",e,end=" "*10+"\n\r")
-				conf.stats[False]+=1
+	try:	
+		vid.streams.first().download(output_path=conf.curdir,filename=strip(vid.title,vid.i))
+	except Exception as e:
+		if e is KeyboardInterrupt:
+			quit()
 		else:
-			sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m\n\r")
-			conf.stats[True]+=1
+			print(" \033[7m\033[31m[Failed]\033[0m",e,end=" "*10+"\n\r")
+			conf.stats[False]+=1
 	else:
-		sys.stdout.write("\033[s\033[7m[Exists]\033[27m     \n\r")
-		conf.stats[None]+=1
+		sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m\n\r")
+		conf.stats[True]+=1
 	sys.stdout.flush()
 def playlist(link,files):
 	#https://www.youtube.com/playlist?list=PLk5KkYG8je9DsAgKQcRrT9wOlTHiJmORl
@@ -49,23 +39,27 @@ def playlist(link,files):
 		i=link.split("?v=")[-1]
 		sys.stdout.write(str(links.index(link)+1)+"/"+str(len(links))+": youtube.com"+link+": \033[7m[Checking...]\033[27m\033[13D")
 		sys.stdout.flush()
-		try:
-			vid=Vid("youtube.com"+link)
-		except KeyboardInterrupt:
-			raise KeyboardInterrupt()
-		except Exception as e:
-			sys.stdout.write("\033[7m\033[31m[Failed, trying again...]\033[0m\033[25D")
-			sys.stdout.flush()
+		if (not i in conf.files) or ("--overwrite" in sys.argv):
 			try:
 				vid=Vid("youtube.com"+link)
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt()
 			except Exception as e:
-				sys.stdout.write("\033[7m\033[31m[Failed]\033[0m"+" "*10+"\n\r")
+				sys.stdout.write("\033[7m\033[31m[Failed, trying again...]\033[0m\033[25D")
+				sys.stdout.flush()
+				try:
+					vid=Vid("youtube.com"+link)
+				except KeyboardInterrupt:
+					raise KeyboardInterrupt()
+				except Exception as e:
+					sys.stdout.write("\033[7m\033[31m[Failed]\033[0m"+" "*10+"\n\r")
+				else:
+					stuff(vid)
 			else:
 				stuff(vid)
 		else:
-			stuff(vid)
+			sys.stdout.write("\033[s\033[7m[Exists]\033[27m     \n\r")
+			conf.stats[None]+=1
 def strip(s,i=0):
 	s=s.replace(".","\u2024")
 	s=s.replace("/","\u2215")
@@ -166,19 +160,27 @@ def main():
 	if "--help" in sys.argv:
 		print("--conf       Triggers configuration and quits after this.\n--help       Triggers help and quits.\n--overwrite  overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)")
 		quit()
-	for link in conf.links:
-		if "/watch?v=" in link:
-			singvid(conf.link)
-		elif "/playlist?list=" in link:
-			try:
+	manmode=False
+	for arg in sys.argv:
+		if "/watch?v=" in arg:
+			singvid(arg)
+			manmode=True
+		elif "/playlist?list=" in arg:
+			playlist(arg)
+			manmode=True
+	if manmode:
+		quit()
+	try:
+		for link in conf.links:
+			if "/watch?v=" in link:
+				singvid(conf.link)
+			elif "/playlist?list=" in link:
 				playlist(link,conf.files)
-			except KeyboardInterrupt:
-				pass
-			finally:
-				print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
-		else:
-			raise ValueError("Invalid link type")
-	sys.stdout.write("Finished\n")
-	sys.stdout.flush()
+			else:
+				raise ValueError("Invalid link type")
+		sys.stdout.write("Finished\n")
+		sys.stdout.flush()
+	finally:
+		print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
 if __name__=="__main__":
 	main()
