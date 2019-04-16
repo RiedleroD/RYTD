@@ -10,7 +10,7 @@ def singvid(link):
 	astream=astreams.first()
 	print("Selected stream:\n"+str(astream))
 	try:
-		astream.download(output_path=curpos)
+		astream.download(output_path=curdir)
 	except AttributeError as e:
 		if not astreams.all()==[]:
 			raise e
