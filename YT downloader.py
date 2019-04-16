@@ -1,4 +1,4 @@
-import pytube, os, sys, io, mutagen
+import pytube, os, sys, io, mutagen, json
 def singvid(link):
 	link=link.split("&")[0]
 	print(link)
@@ -25,36 +25,29 @@ def stuff(vid):
 	vid.ineed()
 	sys.stdout.write("\033[s"+strip(vid.title)[0])
 	sys.stdout.flush()
-	if (not vid.i in files) or ("--overwrite" in sys.argv):
+	if (not vid.i in conf.files) or ("--overwrite" in sys.argv):
 		try:	
-			vid.streams.filter(type="audio").first().download(output_path=curdir,filename=strip(vid.title,vid.i))
+			vid.streams.filter(type="audio").first().download(output_path=conf.curdir,filename=strip(vid.title,vid.i))
 		except Exception as e:
 			if e is KeyboardInterrupt:
 				quit()
 			else:
 				print(" \033[7m\033[31m[Failed]\033[0m",e,end=" "*10+"\n\r")
-				stats[False]+=1
+				conf.stats[False]+=1
 		else:
 			sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m\n\r")
-			stats[True]+=1
+			conf.stats[True]+=1
 	else:
-		sys.stdout.write(" \033[7m[Exists]\033[27m\n\r")
-		stats[None]+=1
+		sys.stdout.write("\033[s\033[7m[Exists]\033[27m     \n\r")
+		conf.stats[None]+=1
 	sys.stdout.flush()
 def playlist(link,files):
-	global stats
 	#https://www.youtube.com/playlist?list=PLk5KkYG8je9DsAgKQcRrT9wOlTHiJmORl
-	stats={True:0,None:0,False:0}
 	sys.stdout.write("Checking...\r")
 	links=pytube.Playlist(link).parse_links()
 	for link in links:
 		i=link.split("?v=")[-1]
 		sys.stdout.write(str(links.index(link)+1)+"/"+str(len(links))+": youtube.com"+link+": \033[7m[Checking...]\033[27m\033[13D")
-		sys.stdout.flush()
-		if i in files:
-			sys.stdout.write("\033[s\033[7m[Exists]\033[27m     \n\r")
-			stats[None]+=1
-			continue
 		sys.stdout.flush()
 		try:
 			vid=Vid("youtube.com"+link)
@@ -73,8 +66,6 @@ def playlist(link,files):
 				stuff(vid)
 		else:
 			stuff(vid)
-	sys.stdout.write("Finished\n")
-	sys.stdout.flush()
 def strip(s,i=0):
 	s=s.replace(".","\u2024")
 	s=s.replace("/","\u2215")
@@ -94,37 +85,100 @@ def strip(s,i=0):
 		return s,i
 	else:
 		return str(i)+"\u2020"+s
-def main():
-	global files, curdir
-	curdir=os.path.abspath(os.path.dirname(__file__))
-	files={}
-	for dirpath, dirnames, filenames in os.walk(curdir):
-		for f in filenames:
-			name,i=strip(os.path.splitext(f)[0])
-			try:
-				i=mutagen.File(dirpath+"/"+f)["description"][0]
-			except TypeError:
-				pass
-			except KeyError:
-				pass
-			if i!=0:
-				files[i]=name
-	link=None
-	for arg in sys.argv:
-		if "/watch?v=" in arg or "/playlist?list=" in arg:
-			link=arg
-	if link==None:
-		link=input("Link please. (Single video or full playlist)\n")
-	if "/watch?v=" in link:
-		singvid(link)
-	elif "/playlist?list=" in link:
+class Config():
+	def __init__(self):
+		self.curdir=os.path.abspath(os.path.dirname(__file__))
+		self.links=[]
+		self.files={}
+		self.conffile=self.curdir+"/.rytdconf"
+		self.stats={True:0,None:0,False:0}
+	def load(self):
+		status=self.load_from_file(self.curdir)
+		self.load_files()
+		self.load_link()
+		self.dump(self.conffile)
+	def load_files(self):
+		for dirpath, dirnames, filenames in os.walk(self.curdir):
+			for f in filenames:
+				name,i=strip(os.path.splitext(f)[0])
+				try:
+					i=mutagen.File(dirpath+"/"+f)["description"][0]
+				except TypeError:
+					pass
+				except KeyError:
+					pass
+				if i!=0:
+					self.files[i]=name
+	def load_link(self):
+		link=None
+		for arg in sys.argv:
+				if "/watch?v=" in arg or "/playlist?list=" in arg:
+					link=arg
+		if self.links==[]:
+			if self.links==[] and link==None:
+				link=input("Link please. (Single video or full playlist)\n")
+			elif link!=None:
+				self.links=[link]
+	def load_from_file(self,path):
+		found=False
+		for dirpath, dirnames, filenames in os.walk(path):
+			for f in filenames:
+				if f.startswith(".rytdconf"):		#No guarantee for anything, but because of how i do this, you can specify multiple config files in multiple ways.
+					found=True
+					conffile=open(dirpath+"/"+f,"r")
+					try:
+						sett=json.load(conffile)
+					except json.decoder.JSONDecodeError:
+						print("NO CONFIG FILE FOUND OR FILE EMPTY")
+						self.set_tings()
+					finally:
+						conffile.close()
+					for link in sett["links"]:
+						self.links.append(link)
+		if found==False:
+			self.set_tings()
+	def set_tings(self):
+		f=self.curdir+"/.rytdconf"
+		inpot=""
+		while not inpot in ("EOF","\"EOF\""):
+			inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\".\n")
+			if not inpot in ("EOF","\"EOF\""):
+				self.links.append(inpot)
+		
+		self.dump(f)
+		quit()
+	def dump(self,f):
+		sett={
+			"conffile":self.conffile,
+			"links":self.links}
+		conffile=open(f,"w+")
 		try:
-			playlist(link,files)
-		except KeyboardInterrupt:
-			pass
+			json.dump(sett,conffile)
 		finally:
-			print("\nDownloaded: "+str(stats[True])+"\nExisting: "+str(stats[None])+"\nFailed: "+str(stats[False]))
-	else:
-		raise ValueError("Invalid link type")
+			conffile.close()
+def main():
+	global conf
+	conf=Config()
+	conf.load()
+	if "--conf" in sys.argv:
+		conf.set_tings()
+		quit()
+	if "--help" in sys.argv:
+		print("--conf       Triggers configuration and quits after this.\n--help       Triggers help and quits.\n--overwrite  overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)")
+		quit()
+	for link in conf.links:
+		if "/watch?v=" in link:
+			singvid(conf.link)
+		elif "/playlist?list=" in link:
+			try:
+				playlist(link,conf.files)
+			except KeyboardInterrupt:
+				pass
+			finally:
+				print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
+		else:
+			raise ValueError("Invalid link type")
+	sys.stdout.write("Finished\n")
+	sys.stdout.flush()
 if __name__=="__main__":
 	main()
