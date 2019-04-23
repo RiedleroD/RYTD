@@ -1,0 +1,4 @@
+*
+!*.py
+!.rytdconf
+!.gitignore
