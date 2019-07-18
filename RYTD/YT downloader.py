@@ -49,51 +49,6 @@ def singvidhook(d):
 		print(stat,d['_elapsed_str'],end="\n",flush=True)
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
-
-def olsingvid(link,verbose=False):
-	link=link.split("&")[0]
-	print(link)
-	yt=Vid(link)
-	yt.ineed(verbose)
-	print(yt.name)
-	streams=yt.streams
-	print("All streams:\n",streams.all())
-	stream=streams.first()
-	print("Selected Stream:\n",stream)
-	filename=strip(yt.title,yt.i)
-	stream.download(output_path=conf.curdir,filename=filename)
-	print("Converting...")
-	convert(conf.curdir+"/"+filename)
-	print("Finished")
-def olstuff(vid,verbose=False):
-	vid.ineed()
-	sys.stdout.write("\033[s"+strip(vid.title)[0])
-	sys.stdout.flush()
-	filename=strip(vid.title,vid.i)
-	print("\033[7m[Downloading]\033[0m"," "*10,end="\033[24D")
-	sys.stdout.flush()
-	try:	
-		vid.streams.first().download(output_path=conf.curdir,filename=filename)
-	except Exception as e:
-		if e is KeyboardInterrupt:
-			quit()
-		else:
-			print(" \033[7m\033[31m[Failed1]\033[0m",e,end=" "*10+"\n\r")
-			conf.stats[False]+=1
-	else:
-		print("\033[7m[Converting]\033[0m"," "*10,end="\033[23D")
-		sys.stdout.flush()
-		try:
-			convert(conf.curdir+"/"+filename,ext=None)
-		except KeyboardInterrupt:
-			quit()
-		#except Exception as e:
-		#	print(" \033[7m\033[31m[Failed2]\033[0m",e,end=" "*10+"\n\r")
-		#	conf.stats[False]+=1
-		else:
-			sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m          \n\r")
-			conf.stats[True]+=1
-	sys.stdout.flush()
 def playlist(link,files,ydl,verbose=False):
 	if verbose:
 		sprintn("Checking...")
@@ -126,46 +81,6 @@ def playlist(link,files,ydl,verbose=False):
 				sprintn("\033[7m[Exists]\033[0m")
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
-			conf.stats[None]+=1
-def olplaylist(link,files,verbose=False):
-	if verbose:
-		sprintn("Checking")
-	else:
-		sprintr("Checking...")
-	links=pytube.Playlist(link).parse_links()
-	if verbose:
-		sprintn(links)
-	for link in links:
-		i=link.split("?v=")[-1]
-		if verbose:
-			print("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ",sep="",flush=True)
-		else:
-			print(links.index(link)+1,"/",len(links),": youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D",sep="",end="",flush=True)
-		if (not i in conf.files) or ("--overwrite" in sys.argv):
-			try:
-				vid=Vid("youtube.com"+link)
-			except KeyboardInterrupt:
-				raise KeyboardInterrupt()
-			except Exception as e:
-				print("\033[7m\033[31m[Failed, trying again...]",end="\033[0m\033[25D",flush=True)
-				try:
-					vid=Vid("youtube.com"+link)
-				except KeyboardInterrupt:
-					raise KeyboardInterrupt()
-				except Exception as e:
-					if verbose:
-						print("\033[7m\033[31m[Failed3]\033[0m",e,flush=True)
-					else:
-						print("\033[7m\033[31m[Failed3]\033[0m"+" "*16,end="\n\r",flush=True)
-				else:
-					stuff(vid)
-			else:
-				stuff(vid)
-		else:
-			if verbose:
-				print("\033[7m[Exists]\033[0m",flush=True)
-			else:
-				print("\033[s\033[7m[Exists]\033[27m",end="     \n\r",flush=True)
 			conf.stats[None]+=1
 def strip(s,i=0):
 	s=s.replace(".","\u2024")
