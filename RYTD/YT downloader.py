@@ -31,7 +31,7 @@ class Vid(pytube.YouTube):
 			self.i=self.video_id
 def singvidhook(d):
 	#'status': 				str<'downloading' | 'finished'>
-	#'downloaded_bytes':	int<downloaded bytes>https://www.youtube.com/watch?v=Cof4IRv8Mhg
+	#'downloaded_bytes':	int<downloaded bytes>
 	#'total_bytes':			int<total bytes>
 	#'tmpfilename':			str<tmp filename>
 	#'filename':			str<filename>
@@ -237,13 +237,10 @@ class Config():
 	def set_tings(self):
 		f=self.curdir+"/.rytdconf"
 		inpot=""
-		try:
-			while not inpot in ("EOF","\"EOF\""):
-				inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\".\n")
-				if not inpot in ("EOF","\"EOF\""):
-					self.links.append(inpot)
-		except EOFError:
-			pass
+		while not inpot in ("EOF","\"EOF\""):
+			inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\".\n")
+			if not inpot in ("EOF","\"EOF\""):
+				self.links.append(inpot)
 		
 		self.dump(f)
 		quit()
