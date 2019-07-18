@@ -1,4 +1,5 @@
 import pytube, os, sys, io, mutagen, json
+from youtube_dl import YoutubeDL as YDL
 #
 #POSSIBLE ARGS:
 #	--conf
@@ -11,14 +12,41 @@ import pytube, os, sys, io, mutagen, json
 #		a link. (youtube only) 
 #
 class Vid(pytube.YouTube):
-	def ineed(self):
-		self.name=self.title
-		self.i=self.video_id
-def singvid(link):
+	def ineed(self,verbose=False):
+		if verbose:
+			print("Video initialisation,")
+			self.name=self.title
+			print("self.name=",self.name)
+			self.i=self.video_id
+			print("self.i=",self.i)
+		else:
+			self.name=self.title
+			self.i=self.video_id
+def singvidhook(d):
+	#'status': 				str<'downloading' | 'finished'>
+	#'downloaded_bytes':	int<downloaded bytes>
+	#'total_bytes':			int<total bytes>
+	#'tmpfilename':			str<tmp filename>
+	#'filename':			str<filename>
+	#'eta':					int<remaining time in seconds>
+	#'speed':				flt<download speed>
+	#'elapsed':				flt<elapsed time in seconds>
+	#'_total_bytes_str':	str<total bytes>
+	#'_elapsed_str':		str<elapsed time in seconds>
+	#'_eta_str':			str<remaining time in seconds>
+	stat=d['status']
+	filename=d['filename']
+	if stat=="downloading":
+		print(filename,stat,d['_eta_str'],end="\033[u",flush=True)
+	elif stat=="finished":
+		print(filename,stat,d['_elapsed_str'],end="\n",flush=True)
+	else:
+		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
+def olsingvid(link,verbose=False):
 	link=link.split("&")[0]
 	print(link)
 	yt=Vid(link)
-	yt.ineed()
+	yt.ineed(verbose)
 	print(yt.name)
 	streams=yt.streams
 	print("All streams:\n",streams.all())
@@ -29,7 +57,7 @@ def singvid(link):
 	print("Converting...")
 	convert(conf.curdir+"/"+filename)
 	print("Finished")
-def stuff(vid):
+def stuff(vid,verbose=False):
 	vid.ineed()
 	sys.stdout.write("\033[s"+strip(vid.title)[0])
 	sys.stdout.flush()
@@ -58,34 +86,45 @@ def stuff(vid):
 			sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m          \n\r")
 			conf.stats[True]+=1
 	sys.stdout.flush()
-def playlist(link,files):
-	#https://www.youtube.com/playlist?list=PLk5KkYG8je9DsAgKQcRrT9wOlTHiJmORl
-	sys.stdout.write("Checking...\r")
+def playlist(link,files,verbose=False):
+	if verbose:
+		print("Checking",flush=True)
+	else:
+		print("Checking...",end="\r",flush=True)
 	links=pytube.Playlist(link).parse_links()
+	if verbose:
+		print(links,flush=True)
 	for link in links:
 		i=link.split("?v=")[-1]
-		sys.stdout.write(str(links.index(link)+1)+"/"+str(len(links))+": youtube.com"+link+": \033[7m[Checking...]\033[27m\033[13D")
-		sys.stdout.flush()
+		if verbose:
+			print("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ",sep="",flush=True)
+		else:
+			print(links.index(link)+1,"/",len(links),": youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D",sep="",end="",flush=True)
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
 			try:
 				vid=Vid("youtube.com"+link)
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt()
 			except Exception as e:
-				sys.stdout.write("\033[7m\033[31m[Failed, trying again...]\033[0m\033[25D")
-				sys.stdout.flush()
+				print("\033[7m\033[31m[Failed, trying again...]",end="\033[0m\033[25D",flush=True)
 				try:
 					vid=Vid("youtube.com"+link)
 				except KeyboardInterrupt:
 					raise KeyboardInterrupt()
 				except Exception as e:
-					sys.stdout.write("\033[7m\033[31m[Failed3]\033[0m"+" "*16+"\n\r")
+					if verbose:
+						print("\033[7m\033[31m[Failed3]\033[0m",e,flush=True)
+					else:
+						print("\033[7m\033[31m[Failed3]\033[0m"+" "*16,end="\n\r",flush=True)
 				else:
 					stuff(vid)
 			else:
 				stuff(vid)
 		else:
-			sys.stdout.write("\033[s\033[7m[Exists]\033[27m     \n\r")
+			if verbose:
+				print("\033[7m[Exists]\033[0m",flush=True)
+			else:
+				print("\033[s\033[7m[Exists]\033[27m",end="     \n\r",flush=True)
 			conf.stats[None]+=1
 def strip(s,i=0):
 	s=s.replace(".","\u2024")
@@ -100,6 +139,7 @@ def strip(s,i=0):
 	s=s.replace(",","\u02cc")
 	s=s.replace("~","\u1513")
 	s=s.replace("|","\u05c0")
+	s=s.replace(";","\u037e")
 	if i==0:
 		if "\u2020" in s:
 			i,s=s.split("\u2020")
@@ -109,6 +149,7 @@ def strip(s,i=0):
 class Config():
 	def __init__(self):
 		self.curdir=os.path.abspath(os.path.dirname(__file__))
+		os.chdir(self.curdir)
 		self.links=[]
 		self.files={}
 		self.conffile=self.curdir+"/.rytdconf"
@@ -220,6 +261,14 @@ def convert(f,ext):
 			raise KeyboardInterrupt()
 		else:
 			raise Exception("Exited with errcode \033[1m"+str(excode)+"\033[0m\n"+str(command))
+class Logger():
+	def debug(self,msg):
+		pass
+	def warning(self,msg):
+		pass
+	def error(self,msg):
+		print(msg)
+YDL_OPTS={"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"progress_hooks":[singvidhook],"logger":Logger()}
 def main():
 	global conf
 	conf=Config()
@@ -231,21 +280,27 @@ def main():
 		print("--conf       Triggers configuration and quits after this.\n--help       Triggers help and quits.\n--overwrite  overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)")
 		quit()
 	manmode=False
+	verbose=False
 	for arg in sys.argv:
 		if "/watch?v=" in arg:
-			singvid(arg)
+			with YDL(YDL_OPTS) as ydl:
+				ydl.download([arg])
 			manmode=True
 		elif "/playlist?list=" in arg:
 			playlist(arg)
 			manmode=True
 	if manmode:
 		quit()
+	if "--verbose" in sys.argv or "-v" in sys.argv:
+		verbose=True
 	try:
 		for link in conf.links:
 			if "/watch?v=" in link:
-				singvid(conf.link)
+				with YDL(YDL_OPTS) as ydl:
+					print(end="\033[s")
+					ydl.download([conf.url])
 			elif "/playlist?list=" in link:
-				playlist(link,conf.files)
+				playlist(link,conf.files,verbose)
 			else:
 				raise ValueError("Invalid link type")
 		sys.stdout.write("Finished\n")
