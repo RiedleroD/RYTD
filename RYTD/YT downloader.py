@@ -157,10 +157,16 @@ class Config():
 		f=self.curdir+"/.rytdconf"
 		inpot=""
 		while not inpot in ("EOF","\"EOF\""):
-			inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\".\n")
+			inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\". If you want to delete all existing links, type \"RESET\".\n")
 			if not inpot in ("EOF","\"EOF\""):
-				self.links.append(inpot)
-		
+				if inpot in ("RESET","\"RESET\""):
+					self.links=[]
+					print("Resetted")
+				else:
+					self.links.append(inpot)
+					if random.randrange(0,200)==69:
+						print("okay...\n...go ahead...")
+		inpot=input("Specify ")
 		self.dump(f)
 		quit()
 	def dump(self,f):
