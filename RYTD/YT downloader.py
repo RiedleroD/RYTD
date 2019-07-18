@@ -11,6 +11,13 @@ from youtube_dl import YoutubeDL as YDL
 #	<link>
 #		a link. (youtube only) 
 #
+def sprint(*s:str,sep:str="",end:str="",flush:bool=True):
+	print(*s,sep=sep,end=end,flush=flush)
+def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
+	print(*s,sep=sep,end=end,flush=flush)
+def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
+	print(*s,sep=sep,end=end,flush=flush)
+
 class Vid(pytube.YouTube):
 	def ineed(self,verbose=False):
 		if verbose:
@@ -42,6 +49,7 @@ def singvidhook(d):
 		print(filename,stat,d['_elapsed_str'],end="\n",flush=True)
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
+
 def olsingvid(link,verbose=False):
 	link=link.split("&")[0]
 	print(link)
@@ -86,14 +94,41 @@ def stuff(vid,verbose=False):
 			sys.stdout.write(" \033[7m\033[32m[Finished]\033[0m          \n\r")
 			conf.stats[True]+=1
 	sys.stdout.flush()
-def playlist(link,files,verbose=False):
+def playlist(link,files,ydl,verbose=False):
 	if verbose:
-		print("Checking",flush=True)
+		sprintn("Checking...")
 	else:
-		print("Checking...",end="\r",flush=True)
+		sprintr("Checking...")
 	links=pytube.Playlist(link).parse_links()
 	if verbose:
-		print(links,flush=True)
+		sprintn(links)
+	for link in links:
+		i=link.split("?v=")[-1]
+		if verbose:
+			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ")
+		else:
+			sprint(links.index(link)+1,"/",len(links),": youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D")
+		if (not i in conf.files) or ("--overwrite" in sys.argv):
+			try:
+				ydl.download(["http://youtube.com"+link])
+			except KeyboardInterrupt:
+				raise KeyboardInterrupt()
+			except:
+				pass
+		else:
+			if verbose:
+				sprintn("\033[7m[Exists]\033[0m")
+			else:
+				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
+			conf.stats[None]+=1
+def olplaylist(link,files,verbose=False):
+	if verbose:
+		sprintn("Checking")
+	else:
+		sprintr("Checking...")
+	links=pytube.Playlist(link).parse_links()
+	if verbose:
+		sprintn(links)
 	for link in links:
 		i=link.split("?v=")[-1]
 		if verbose:
@@ -213,9 +248,8 @@ class Config():
 		self.dump(f)
 		quit()
 	def dump(self,f):
-		sett={
-			"conffile":self.conffile,
-			"links":self.links}
+		sett={"conffile":self.conffile,
+			 "links":   self.links}
 		conffile=open(f,"w+")
 		try:
 			json.dump(sett,conffile)
@@ -265,25 +299,27 @@ def convert(f,ext):
 		else:
 			raise Exception("Exited with errcode \033[1m"+str(excode)+"\033[0m\n"+str(command))
 class Logger():
+	def __init__(self,warn=False,verbose=False):
+		self.v=verbose
+		self.w=warn
 	def debug(self,msg):
-		pass
+		if self.v:
+			sprintn(msg)
 	def warning(self,msg):
-		pass
+		if self.w or self.v:
+			sprintn(msg)
 	def error(self,msg):
-		print(msg)
-YDL_OPTS={"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"progress_hooks":[singvidhook],"logger":Logger()}
-def main():
+		sprintn(msg)
+def main(manmode=False,verbose=False,help=False,configure=False):
 	global conf
 	conf=Config()
 	conf.load()
-	if "--conf" in sys.argv:
+	if configure:
 		conf.set_tings()
 		quit()
-	if "--help" in sys.argv:
+	if help:
 		print("--conf       Triggers configuration and quits after this.\n--help       Triggers help and quits.\n--overwrite  overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)")
 		quit()
-	manmode=False
-	verbose=False
 	for arg in sys.argv:
 		if "/watch?v=" in arg:
 			with YDL(YDL_OPTS) as ydl:
@@ -294,21 +330,40 @@ def main():
 			manmode=True
 	if manmode:
 		quit()
-	if "--verbose" in sys.argv or "-v" in sys.argv:
-		verbose=True
 	try:
-		for link in conf.links:
-			if "/watch?v=" in link:
-				with YDL(YDL_OPTS) as ydl:
+		with YDL(YDL_OPTS) as ydl:
+			for link in conf.links:
+				sprintn("LINK ",conf.links.index(link)+1)
+				if "/watch?v=" in link:
 					print(end="\033[s")
 					ydl.download([conf.url])
-			elif "/playlist?list=" in link:
-				playlist(link,conf.files,verbose)
-			else:
-				raise ValueError("Invalid link type")
-		sys.stdout.write("Finished\n")
-		sys.stdout.flush()
+				elif "/playlist?list=" in link:
+					playlist(link,conf.files,ydl,verbose)
+				else:
+					raise ValueError("Invalid link type")
+			sprintn("Finished")
+	except Exception as e:
+		print("Some major Error happened:",e)
 	finally:
 		print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
+
 if __name__=="__main__":
-	main()
+	if "--help" in sys.argv:
+		help=True
+	else:
+		help=False
+	if "--conf" in sys.argv:
+		configure=True
+	else:
+		configure=False
+	if "--verbose" in sys.argv or "-v" in sys.argv:
+		verbose=True
+		print("VERBOSE")
+	else:
+		verbose=False
+	if "--warnings" in sys.argv:
+		warn=True
+	else:
+		warn=False
+	YDL_OPTS={"outtmpl":"%(title)s","format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"postprocessor_args":{"-metadata":"comment='hi'"},"progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
+	main(help=help,configure=configure,verbose=verbose)
