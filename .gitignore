@@ -1,4 +1,5 @@
 *
 !*.py
+!RYTD/*.py
 !.rytdconf
 !.gitignore
