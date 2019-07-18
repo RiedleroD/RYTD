@@ -44,9 +44,9 @@ def singvidhook(d):
 	stat=d['status']
 	filename=d['filename']
 	if stat=="downloading":
-		print(filename,stat,d['_eta_str'],end="\033[u",flush=True)
+		print(stat,d['_eta_str'],end="\033[u",flush=True)
 	elif stat=="finished":
-		print(filename,stat,d['_elapsed_str'],end="\n",flush=True)
+		print(stat,d['_elapsed_str'],end="\n",flush=True)
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
 
@@ -65,7 +65,7 @@ def olsingvid(link,verbose=False):
 	print("Converting...")
 	convert(conf.curdir+"/"+filename)
 	print("Finished")
-def stuff(vid,verbose=False):
+def olstuff(vid,verbose=False):
 	vid.ineed()
 	sys.stdout.write("\033[s"+strip(vid.title)[0])
 	sys.stdout.flush()
@@ -110,11 +110,17 @@ def playlist(link,files,ydl,verbose=False):
 			sprint(links.index(link)+1,"/",len(links),": youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
 			try:
-				ydl.download(["http://youtube.com"+link])
+				 info_dict=ydl.extract_info("https://youtube.com"+link)
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt()
+				conf.stats[False]+=1
 			except:
 				pass
+			else:
+				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+conf.homedir+"/"+info_dict["title"]+".opus'"
+				os.system(command)
+				os.remove(conf.curdir+"/RYTD_TMP")
+				conf.stats[True]+=1
 		else:
 			if verbose:
 				sprintn("\033[7m[Exists]\033[0m")
@@ -195,7 +201,7 @@ class Config():
 		self.load_link()
 		self.dump(self.conffile)
 	def load_files(self):
-		for dirpath, dirnames, filenames in os.walk(self.curdir):
+		for dirpath, dirnames, filenames in os.walk(self.homedir):
 			for f in filenames:
 				name,i=strip(os.path.splitext(f)[0])
 				try:
@@ -209,31 +215,29 @@ class Config():
 	def load_link(self):
 		link=None
 		for arg in sys.argv:
-				if "/watch?v=" in arg or "/playlist?list=" in arg:
-					link=arg
+			if "/watch?v=" in arg or "/playlist?list=" in arg:
+				link=arg
 		if self.links==[]:
 			if self.links==[] and link==None:
 				link=input("Link please. (Single video or full playlist)\n")
 			elif link!=None:
 				self.links=[link]
 	def load_from_file(self,path):
-		found=False
-		for dirpath, dirnames, filenames in os.walk(path):
-			for f in filenames:
-				if f.startswith(".rytdconf"):
-					found=True
-					conffile=open(dirpath+"/"+f,"r")
-					try:
-						sett=json.load(conffile)
-					except json.decoder.JSONDecodeError:
-						print("NO CONFIG FILE FOUND OR FILE EMPTY")
-						self.set_tings()
-					finally:
-						conffile.close()
-					for link in sett["links"]:
-						self.links.append(link)
-		if found==False:
+		try:
+			conffile=open(self.curdir+"/.rytdconf","r")
+		except OSError:
 			self.set_tings()
+		else:
+			try:
+				sett=json.load(conffile)
+			except json.decoder.JSONDecodeError:
+				raise ValueError("Corrupt Config File. (hint: it's json, get it together.)")
+			else:
+				for link in sett["links"]:
+					self.links.append(link)
+				self.homedir=sett["homedir"]
+			finally:
+				conffile.close()
 	def set_tings(self):
 		f=self.curdir+"/.rytdconf"
 		inpot=""
@@ -246,7 +250,8 @@ class Config():
 		quit()
 	def dump(self,f):
 		sett={"conffile":self.conffile,
-			 "links":   self.links}
+			 "links":   self.links,
+			 "homedir": self.homedir}
 		conffile=open(f,"w+")
 		try:
 			json.dump(sett,conffile)
@@ -286,7 +291,7 @@ def convert(f,ext):
 			raise TypeError("Expected a file, got a mount point.")
 	if "\u2020" in f:
 		i,f=os.path.splitext(f)[0].split("\u2020")
-		command="ffmpeg -v 0 -i \""+dirpath+"/"+i+"\u2020"+f+ext+"\" -vn -y -metadata comment=\""+i+"\" \""+dirpath+"/"+f+".ogg\""
+		command="ffmpeg -v 0 -i \""+dirpath+"/"+i+"\u2020"+f+ext+"\" -vn -y -metadata comment=\""+i+"\" \""+dirpath+"/"+f+".opus\""
 		excode=os.system(command)
 		os.remove(dirpath+"/"+i+"\u2020"+f+ext)
 		if excode==0:
@@ -362,5 +367,5 @@ if __name__=="__main__":
 		warn=True
 	else:
 		warn=False
-	YDL_OPTS={"outtmpl":"%(title)s","format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"postprocessor_args":{"-metadata":"comment='hi'"},"progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
+	YDL_OPTS={"outtmpl":"RYTD_TMP","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}#,"postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"postprocessor_args":["-metadata comment='hi'"]}
 	main(help=help,configure=configure,verbose=verbose)
