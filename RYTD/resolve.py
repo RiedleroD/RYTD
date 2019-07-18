@@ -9,3 +9,4 @@ if os.system(sys.executable + " -m pip -q install --upgrade mysql-connector") !=
 print("mysql-connector ist ready")
 
 import mysql
+
