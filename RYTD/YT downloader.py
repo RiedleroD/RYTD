@@ -34,6 +34,7 @@ def singvidhook(d):
 		print(d['status'],d['_eta_str'],end="\033[u",flush=True)
 	elif stat=="finished":
 		print(d['status'],d['_elapsed_str'],end="\n",flush=True)
+		conf.stats[True]+=1
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
 
@@ -42,11 +43,11 @@ def playlist(link,files,ydl,verbose=False):
 		sprintn("Checking...")
 	else:
 		sprintr("Checking...")
-	links=pytube.Playlist(link).parse_links()
+	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
 	if verbose:
 		sprintn(links)
 	for link in links:
-		i=link.split("?v=")[-1]
+		i=link.split("watch?v=")[-1]
 		if verbose:
 			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ")
 		else:
@@ -63,7 +64,6 @@ def playlist(link,files,ydl,verbose=False):
 				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+conf.homedir+"/"+info_dict["title"]+".opus'"
 				os.system(command)
 				os.remove(conf.curdir+"/RYTD_TMP")
-				conf.stats[True]+=1
 		else:
 			if verbose:
 				sprintn("\033[7m[Exists]\033[0m")
@@ -82,7 +82,6 @@ class Config():
 	def load(self):
 		status=self.load_from_file(self.curdir)
 		self.load_files()
-		self.load_link()
 		self.dump(self.conffile)
 	def load_files(self):
 		for dirpath, dirnames, filenames in os.walk(self.homedir):
@@ -97,16 +96,6 @@ class Config():
 					pass
 				if i!=0:
 					self.files[i]=name
-	def load_link(self):
-		link=None
-		for arg in sys.argv:
-			if "/watch?v=" in arg or "/playlist?list=" in arg:
-				link=arg
-		if self.links==[]:
-			if self.links==[] and link==None:
-				link=input("Link please. (Single video or full playlist)\n")
-			elif link!=None:
-				self.links=[link]
 	def load_from_file(self,path):
 		try:
 			conffile=open(self.curdir+"/.rytdconf","r")
@@ -118,8 +107,8 @@ class Config():
 			except json.decoder.JSONDecodeError:
 				raise ValueError("Corrupt Config File. (hint: it's json, get it together.)")
 			else:
-				for link in sett["links"]:
-					self.links.append(link)
+				for link,typ in sett["links"].items():
+					self.links.append(RLink(link,typ))
 				self.homedir=sett["homedir"]
 			finally:
 				conffile.close()
@@ -140,8 +129,11 @@ class Config():
 		self.dump(f)
 		quit()
 	def dump(self,f):
+		links={}
+		for link in self.links:
+			links[link.link]=link.typ
 		sett={"conffile":self.conffile,
-			 "links":   self.links,
+			 "links":   links,
 			 "homedir": self.homedir}
 		conffile=open(f,"w+")
 		try:
@@ -163,9 +155,9 @@ class Logger():
 		sprintn(msg)
 
 class RLink():
-	def __init__(self,link,typ:bool):
+	def __init__(self,link:str,typ:str):
 		self.link=link
-		self.typ=typ
+		self.typ=typ	#pl for youtube playlist, yt for youtube video, dt for direct file link, xx for everything else
 
 def main(manmode=False,verbose=False,configure=False):
 	global conf
@@ -188,11 +180,14 @@ def main(manmode=False,verbose=False,configure=False):
 		with YDL(YDL_OPTS) as ydl:
 			for link in conf.links:
 				sprintn("LINK ",conf.links.index(link)+1)
-				if "/watch?v=" in link:
-					print(end="\033[s")
-					ydl.download([conf.url])
-				elif "/playlist?list=" in link:
-					playlist(link,conf.files,ydl,verbose)
+				if link.typ=="yt":
+					ydl.download(["https://youtu.be/"+link.link])
+				elif link.typ=="xx":
+					ydl.download([link.link])
+				elif link.typ=="pl":
+					playlist(link.link,conf.files,ydl,verbose)
+				elif link.typ=="dt":
+					direct(link.link,conf.files,verbose)
 				else:
 					raise ValueError("Invalid link type")
 			sprintn("Finished")
