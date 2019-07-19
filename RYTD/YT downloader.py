@@ -9,7 +9,7 @@ from youtube_dl import YoutubeDL as YDL
 #	--overwrite
 #		download and convert videos even if existent.
 #	<link>
-#		a link. (youtube only) 
+#		a link.
 #
 def sprint(*s:str,sep:str="",end:str="",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
@@ -198,12 +198,14 @@ def main(manmode=False,verbose=False,help=False,configure=False):
 		print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
 
 if __name__=="__main__":
-	if "--help" in sys.argv:
+	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
 		help=True
+		print("HELP")
 	else:
 		help=False
-	if "--conf" in sys.argv:
+	if "--conf" in sys.argv or "-c" in sys.argv:
 		configure=True
+		print("CONFIGURE")
 	else:
 		configure=False
 	if "--verbose" in sys.argv or "-v" in sys.argv:
@@ -211,9 +213,9 @@ if __name__=="__main__":
 		print("VERBOSE")
 	else:
 		verbose=False
-	if "--warnings" in sys.argv:
+	if "--warnings" in sys.argv or "-w" in sys.argv:
 		warn=True
 	else:
 		warn=False
-	YDL_OPTS={"outtmpl":"RYTD_TMP","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}#,"postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"opus","preferredquality":"320"}],"postprocessor_args":["-metadata comment='hi'"]}
+	YDL_OPTS={"outtmpl":"RYTD_TMP","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
 	main(help=help,configure=configure,verbose=verbose)
