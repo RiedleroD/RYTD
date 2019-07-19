@@ -203,7 +203,7 @@ if __name__=="__main__":
 		print("HELP")
 	else:
 		help=False
-	if "--conf" in sys.argv or "-c" in sys.argv:
+	if "--configure" in sys.argv or "-c" in sys.argv:
 		configure=True
 		print("CONFIGURE")
 	else:
