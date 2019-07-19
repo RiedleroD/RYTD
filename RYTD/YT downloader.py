@@ -30,14 +30,13 @@ def singvidhook(d):
 	#'_total_bytes_str':	str<total bytes>
 	#'_elapsed_str':		str<elapsed time in seconds>
 	#'_eta_str':			str<remaining time in seconds>
-	stat=d['status']
-	filename=d['filename']
 	if stat=="downloading":
-		print(stat,d['_eta_str'],end="\033[u",flush=True)
+		print(d['status'],d['_eta_str'],end="\033[u",flush=True)
 	elif stat=="finished":
-		print(stat,d['_elapsed_str'],end="\n",flush=True)
+		print(d['status'],d['_elapsed_str'],end="\n",flush=True)
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
+
 def playlist(link,files,ydl,verbose=False):
 	if verbose:
 		sprintn("Checking...")
@@ -71,6 +70,7 @@ def playlist(link,files,ydl,verbose=False):
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
 			conf.stats[None]+=1
+
 class Config():
 	def __init__(self):
 		self.curdir=os.path.abspath(os.path.dirname(__file__))
@@ -148,6 +148,7 @@ class Config():
 			json.dump(sett,conffile)
 		finally:
 			conffile.close()
+
 class Logger():
 	def __init__(self,warn=False,verbose=False):
 		self.v=verbose
@@ -160,6 +161,12 @@ class Logger():
 			sprintn(msg)
 	def error(self,msg):
 		sprintn(msg)
+
+class RLink():
+	def __init__(self,link,typ:bool):
+		self.link=link
+		self.typ=typ
+
 def main(manmode=False,verbose=False,configure=False):
 	global conf
 	conf=Config()
