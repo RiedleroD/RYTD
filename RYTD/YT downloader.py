@@ -1,6 +1,7 @@
 import pytube, os, sys, io, mutagen, json
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
+from traceback import TracebackException as TBException
 #
 #POSSIBLE ARGS:
 #	--conf
@@ -18,6 +19,13 @@ def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
+
+def bashsafe(s:str):
+	s=s.replace("/","|")
+	s=s.replace("\\","|")
+	s=s.replace("\'","`")
+	s=s.replace("\"","`")
+	return s
 
 def direct(link,files,verbose=False):
 	fname=link.split("/")[-1]
@@ -38,19 +46,25 @@ def singvidhook(d):
 	#'_total_bytes_str':	str<total bytes>
 	#'_elapsed_str':		str<elapsed time in seconds>
 	#'_eta_str':			str<remaining time in seconds>
+	stat=d["status"]
+	try:
+		elapsed=round(d['elapsed'],2)
+	except KeyError:
+		elapsed=""
+	try:
+		eta=d['eta']
+	except KeyError:
+		eta=""
 	if stat=="downloading":
-		print(d['status'],d['_eta_str'],end="\033[u",flush=True)
+		sprint("\033[46m[Downloading]\033[0m ",eta,"    ",end="\033[u")
 	elif stat=="finished":
-		print(d['status'],d['_elapsed_str'],end="\n",flush=True)
+		sprint("\033[42m[Finished]\033[0m ",elapsed,end="   \n\033[46m[Converting]\033[0m\r")
 		conf.stats[True]+=1
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
 
 def playlist(link,files,ydl,verbose=False):
-	if verbose:
-		sprintn("Checking...")
-	else:
-		sprintr("Checking...")
+	sprintr("Checking...")
 	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
 	if verbose:
 		sprintn(links)
@@ -59,17 +73,18 @@ def playlist(link,files,ydl,verbose=False):
 		if verbose:
 			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ")
 		else:
-			sprint(links.index(link)+1,"/",len(links),": youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D")
+			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
 			try:
 				 info_dict=ydl.extract_info("https://youtube.com"+link)
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt()
 				conf.stats[False]+=1
-			except:
-				pass
+			except Exception as e:
+				tbe=TBException.from_exception(e)
+				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
-				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+conf.homedir+"/"+info_dict["title"]+".opus'"
+				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+conf.homedir+"/"+bashsafe(info_dict["title"])+".opus'"
 				os.system(command)
 				os.remove(conf.curdir+"/RYTD_TMP")
 		else:
@@ -187,14 +202,17 @@ def main(manmode=False,verbose=False,configure=False):
 	try:
 		with YDL(YDL_OPTS) as ydl:
 			for link in conf.links:
-				sprintn("LINK ",conf.links.index(link)+1)
 				if link.typ=="yt":
+					sprintn("VIDEO ",conf.links.index(link)+1)
 					ydl.download(["https://youtu.be/"+link.link])
 				elif link.typ=="xx":
+					sprintn("EXTERN ",conf.links.index(link)+1)
 					ydl.download([link.link])
 				elif link.typ=="pl":
+					sprintn("PLAYLIST ",conf.links.index(link)+1)
 					playlist(link.link,conf.files,ydl,verbose)
 				elif link.typ=="dt":
+					sprintn("DIRECT ",conf.links.index(link)+1)
 					direct(link.link,conf.files,verbose)
 				else:
 					raise ValueError("Invalid link type")
