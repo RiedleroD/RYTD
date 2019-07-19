@@ -82,26 +82,6 @@ def playlist(link,files,ydl,verbose=False):
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
 			conf.stats[None]+=1
-def strip(s,i=0):
-	s=s.replace(".","\u2024")
-	s=s.replace("/","\u2215")
-	s=s.replace("\"","\u1426")
-	s=s.replace("#","\u2d4c")
-	s=s.replace(":","\u0589")
-	s=s.replace("\\","\u29f5")
-	s=s.replace("\'","\u02c8")
-	s=s.replace("*","\u2217")
-	s=s.replace("?","\u1e92")
-	s=s.replace(",","\u02cc")
-	s=s.replace("~","\u1513")
-	s=s.replace("|","\u05c0")
-	s=s.replace(";","\u037e")
-	if i==0:
-		if "\u2020" in s:
-			i,s=s.split("\u2020")
-		return s,i
-	else:
-		return str(i)+"\u2020"+s
 class Config():
 	def __init__(self):
 		self.curdir=os.path.abspath(os.path.dirname(__file__))
@@ -118,7 +98,8 @@ class Config():
 	def load_files(self):
 		for dirpath, dirnames, filenames in os.walk(self.homedir):
 			for f in filenames:
-				name,i=strip(os.path.splitext(f)[0])
+				name=os.path.splitext(f)[0]
+				i=0
 				try:
 					i=mutagen.File(dirpath+"/"+f)["description"][0]
 				except TypeError:
