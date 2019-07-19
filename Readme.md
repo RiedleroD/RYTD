@@ -8,7 +8,7 @@ RYTD is an automated music downloader, supporting [a few websites](http://ytdl-o
 Aviable command line arguments:
 
 - `--configure`|`-c`
-- `--overwrite`|`-o`|
+- `--overwrite`|`-o`
 - `--verbose `|`-v`|`…`
 - `--warnings`|`-w`|`!`
 - `--help`|`-h`|`?`
