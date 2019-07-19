@@ -18,17 +18,6 @@ def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
 def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 
-class Vid(pytube.YouTube):
-	def ineed(self,verbose=False):
-		if verbose:
-			print("Video initialisation,")
-			self.name=self.title
-			print("self.name=",self.name)
-			self.i=self.video_id
-			print("self.i=",self.i)
-		else:
-			self.name=self.title
-			self.i=self.video_id
 def singvidhook(d):
 	#'status': 				str<'downloading' | 'finished'>
 	#'downloaded_bytes':	int<downloaded bytes>
