@@ -1,5 +1,6 @@
 import pytube, os, sys, io, mutagen, json
 from youtube_dl import YoutubeDL as YDL
+import urllib.request as urlreq
 #
 #POSSIBLE ARGS:
 #	--conf
@@ -17,6 +18,13 @@ def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
+
+def direct(link,files,verbose=False):
+	fname=link.split("/")[-1]
+	if not fname in conf.files.values():
+		f=urlreq.urlopen(link)
+		with open(conf.homedir+"/"+fname,"wb") as download:
+			download.write(f.read())
 
 def singvidhook(d):
 	#'status': 				str<'downloading' | 'finished'>
