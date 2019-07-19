@@ -159,49 +159,6 @@ class Config():
 			json.dump(sett,conffile)
 		finally:
 			conffile.close()
-def convert(f,ext):
-	if f.endswith(".mp4") or f.endswith(".webm") or f.endswith(".mkv"):
-		fn,ext=os.path.splitext(f)
-	elif ext==None:
-		for ext in (".mp4",".mkv",".webm"):
-			tryagain=False
-			success=False
-			try:
-				convert(f,ext)
-			except OSError:
-				tryagain=True
-			else:
-				success=True
-			if success or not tryagain:
-				break
-		if not success:
-			raise OSError("File doesn't exist. "+f)
-		else:
-			return
-	else:
-		f+=ext
-	if not os.path.exists(f):
-		raise OSError("File doesn't exist. "+f)
-	elif os.path.isfile(f):
-		dirpath,f=os.path.split(f)
-	else:
-		if os.path.isdir(f):
-			raise TypeError("Expected a file, got a directory.")
-		elif os.path.islink(f):
-			raise TypeError("Expected a file, got a Link.")
-		elif os.path.ismount(f):
-			raise TypeError("Expected a file, got a mount point.")
-	if "\u2020" in f:
-		i,f=os.path.splitext(f)[0].split("\u2020")
-		command="ffmpeg -v 0 -i \""+dirpath+"/"+i+"\u2020"+f+ext+"\" -vn -y -metadata comment=\""+i+"\" \""+dirpath+"/"+f+".opus\""
-		excode=os.system(command)
-		os.remove(dirpath+"/"+i+"\u2020"+f+ext)
-		if excode==0:
-			pass
-		elif excode==2:
-			raise KeyboardInterrupt()
-		else:
-			raise Exception("Exited with errcode \033[1m"+str(excode)+"\033[0m\n"+str(command))
 class Logger():
 	def __init__(self,warn=False,verbose=False):
 		self.v=verbose
