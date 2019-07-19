@@ -160,15 +160,12 @@ class Logger():
 			sprintn(msg)
 	def error(self,msg):
 		sprintn(msg)
-def main(manmode=False,verbose=False,help=False,configure=False):
+def main(manmode=False,verbose=False,configure=False):
 	global conf
 	conf=Config()
 	conf.load()
 	if configure:
 		conf.set_tings()
-		quit()
-	if help:
-		print("--conf       Triggers configuration and quits after this.\n--help       Triggers help and quits.\n--overwrite  overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)")
 		quit()
 	for arg in sys.argv:
 		if "/watch?v=" in arg:
@@ -199,23 +196,27 @@ def main(manmode=False,verbose=False,help=False,configure=False):
 
 if __name__=="__main__":
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
-		help=True
-		print("HELP")
-	else:
-		help=False
+		print("""HELP
+
+--configure | -c |   | Triggers configuration and quits after this.
+--help      | -h | ? | Triggers help and quits.
+--overwrite | -o |   | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
+--warnings  | -w | ! | Prints ocurring warnings.
+--verbose   | -v | … | Verbose.""")
+		quit()
 	if "--configure" in sys.argv or "-c" in sys.argv:
 		configure=True
 		print("CONFIGURE")
 	else:
 		configure=False
-	if "--verbose" in sys.argv or "-v" in sys.argv:
+	if "--verbose" in sys.argv or "-v" in sys.argv or "…" in sys.argv:
 		verbose=True
 		print("VERBOSE")
 	else:
 		verbose=False
-	if "--warnings" in sys.argv or "-w" in sys.argv:
+	if "--warnings" in sys.argv or "-w" in sys.argv or "!" in sys.argv:
 		warn=True
 	else:
 		warn=False
 	YDL_OPTS={"outtmpl":"RYTD_TMP","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
-	main(help=help,configure=configure,verbose=verbose)
+	main(configure=configure,verbose=verbose)
