@@ -151,8 +151,10 @@ Aviable commands:
 		selects the playlist in the specified path
 	reset
 		deletes all playlists
+	end
+		saves the configuration and exits
 """)
-		while not inpot in ("EOF","\"EOF\""):
+		while not inpot.startswith("end"):
 			if " " in inpot or "\t" in inpot:
 				try:
 					command,argument=inpot.split()
@@ -162,21 +164,36 @@ Aviable commands:
 				command=inpot
 			command=command.lower()
 			
-			if command=="reset":
+			if command=="reset":		#reset
 				self.links=[]
 				sprintn("Resetted")
-			elif command=="new":
-				
-			elif command=="":
+			elif command=="new":		#new
+				if argument.endswith("/"):
+					path=argument+"default.rpl"
+				elif argument.endswith(".rpl");
+					path=argument
+				else:
+					path=argument+".rpl"
+				try:
+					f=open(path,"w+")
+				except OSError:
+					sprintn("Something about the path is wrong! (",path,")")
+				else:
+					try:
+						f.write("{}")
+					except OSError:
+						print("Couldn't write to file.")
+					
+			elif command=="":			#empty string
 				pass
-			elif command.startswith("["):
+			elif command.startswith("["):#brackets
 				sprintn("No, I meant without the brackets.")
-			elif command=="add":
+			elif command=="add":		#add
 				self.links[curpl].append()
 				if random.randrange(0,200)==69:
 					sprintn("okay...\n...go ahead...")
 				sprintn("Added ",link," to ",self.links[curpl].path)
-			else:
+			else:						#unrecognizable
 				sprintn("Invalid command:",inpot)
 			inpot=input("")
 		self.dump()
