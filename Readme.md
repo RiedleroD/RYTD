@@ -1,6 +1,8 @@
 # **RYTD**
 RYTD is an automated music downloader, supporting [a few websites](http://ytdl-org.github.io/youtube-dl/supportedsites.html). 
 
+<img style="height:10em;float:left" src="./RYTD/Logo.png" />
+
 ### Aviable command line arguments
 
 - `--configure`|`-c`
