@@ -63,7 +63,7 @@ def singvidhook(d):
 	else:
 		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
 
-def playlist(link,files,ydl,verbose=False):
+def playlist(link,files,ydl,path,verbose=False):
 	sprintr("Checking...")
 	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
 	if verbose:
@@ -84,7 +84,7 @@ def playlist(link,files,ydl,verbose=False):
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
-				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+conf.homedir+"/"+bashsafe(info_dict["title"])+".opus'"
+				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+path+"/"+bashsafe(info_dict["title"])+".opus'"
 				os.system(command)
 				os.remove(conf.curdir+"/RYTD_TMP")
 		else:
@@ -107,18 +107,19 @@ class Config():
 		self.load_files()
 		self.dump()
 	def load_files(self):
-		for dirpath, dirnames, filenames in os.walk(self.homedir):
-			for f in filenames:
-				name=os.path.splitext(f)[0]
-				i=0
-				try:
-					i=mutagen.File(dirpath+"/"+f)["description"][0]
-				except TypeError:
-					pass
-				except KeyError:
-					pass
-				if i!=0:
-					self.files[i]=name
+		for playlist in self.links:
+			for dirpath, dirnames, filenames in os.walk(playlist.path):
+				for f in filenames:
+					name=os.path.splitext(f)[0]
+					i=0
+					try:
+						i=mutagen.File(dirpath+"/"+f)["description"][0]
+					except TypeError:
+						pass
+					except KeyError:
+						pass
+					if i!=0:
+						self.files[i]=name
 	def load_from_file(self,path):
 		try:
 			conffile=open(self.curdir+"/.rytdconf","r")
@@ -127,14 +128,27 @@ class Config():
 		else:
 			try:
 				sett=json.load(conffile)
+				for playlist in sett["playlists"]:
+					self.load_from_playlist(playlist)
+			finally:
+				conffile.close()
+	def load_from_playlist(self,path):
+		try:
+			plfile=open(path,"r")
+		except OSError:
+			sprintn("Couldn't load playlist: ",path)
+		else:
+			try:
+				linkdict=json.load(plfile)
 			except json.decoder.JSONDecodeError:
 				raise ValueError("Corrupt Config File. (hint: it's json, get it together.)")
 			else:
-				for link,typ in sett["links"].items():
-					self.links.append(RLink(link,typ))
-				self.homedir=sett["homedir"]
+				links=[]
+				for link,typ in linkdict.items():
+					links.append(RLink(link,typ))
+				self.links.append(RLinkArray(links,path))
 			finally:
-				conffile.close()
+				plfile.close()
 	def set_tings(self):
 		inpot=""
 		curpl=0
@@ -170,7 +184,7 @@ Aviable commands:
 			elif command=="new":		#new
 				if argument.endswith("/"):
 					path=argument+"default.rpl"
-				elif argument.endswith(".rpl");
+				elif argument.endswith(".rpl"):
 					path=argument
 				else:
 					path=argument+".rpl"
@@ -205,18 +219,17 @@ Aviable commands:
 			links={}
 			for link in playlist:
 				links[link.link]=link.typ
-			playlists[playlist.path]=links
+			playlists[playlist.f]=links
 			
 		sett={"conffile":self.conffile,
-			 "playlists":playlists.keys(),
-			 "homedir": self.homedir}
+			 "playlists":list(playlists)}
 		conffile=open(self.conffile,"w+")
 		try:
 			json.dump(sett,conffile)
 		finally:
 			conffile.close()
-		for path, links in playlists.items():
-			plfile=open(path,"w+")
+		for f, links in playlists.items():
+			plfile=open(f,"w+")
 			try:
 				json.dump(links,plfile)
 			finally:
@@ -244,13 +257,34 @@ class RLink():
 class RLinkArray(list):
 	def __init__(self,links:"list of RLink",path:str):
 		self.links=links
-		self.path=path
+		self.path=os.path.dirname(path)
+		self.f=path
 	def __iter__(self):
-		return self.links
+		return self.links.__iter__()
 	def append(self,*args):
-		self.link.append(*args)
+		return self.links.append(*args)
+	def sort(self,*args,**kwargs):
+		return self.links.sort(*args,**kwargs)
+	def pop(self,*args,**kwargs):
+		return self.links.pop(*args,**kwargs)
+	def clear(self,*args,**kwargs):
+		return self.links.clear(*args,**kwargs)
+	def copy(self,*args,**kwargs):
+		return self.links.copy(*args,**kwargs)
+	def count(self,*args,**kwargs):
+		return self.links.count(*args,**kwargs)
+	def extend(self,*args,**kwargs):
+		return self.links.extend(*args,**kwargs)
+	def index(self,*args,**kwargs):
+		return self.links.index(*args,**kwargs)
+	def insert(self,*args,**kwargs):
+		return self.links.insert(*args,**kwargs)
+	def remove(self,*args,**kwargs):
+		return self.links.remove(*args,**kwargs)
+	def reverse(self,*args,**kwargs):
+		return self.links.reverse(*args,**kwargs)
 
-def main(manmode=False,verbose=False,configure=False):
+def main(manmode=False,warn=False,verbose=False,configure=False):
 	global conf
 	conf=Config()
 	conf.load()
@@ -267,26 +301,31 @@ def main(manmode=False,verbose=False,configure=False):
 			manmode=True
 	if manmode:
 		quit()
+	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
 	try:
-		with YDL(YDL_OPTS) as ydl:
-			for link in conf.links:
+		for pl in conf.links:
+			for link in pl:
 				if link.typ=="yt":
-					sprintn("VIDEO ",conf.links.index(link)+1)
-					ydl.download(["https://youtu.be/"+link.link])
+					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					with YDL(YDL_OPTS) as ydl:
+						sprintn("VIDEO ",pl.index(link)+1)
+						ydl.download(["https://youtu.be/"+link.link])
 				elif link.typ=="xx":
-					sprintn("EXTERN ",conf.links.index(link)+1)
-					ydl.download([link.link])
+					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					with YDL(YDL_OPTS) as ydl:
+						sprintn("EXTERN ",pl.index(link)+1)
+						ydl.download([link.link])
 				elif link.typ=="pl":
-					sprintn("PLAYLIST ",conf.links.index(link)+1)
-					playlist(link.link,conf.files,ydl,verbose)
+					YDL_OPTS["outtmpl"]="RYTD_TMP"
+					with YDL(YDL_OPTS) as ydl:
+						sprintn("PLAYLIST ",pl.index(link)+1)
+						playlist(link.link,conf.files,ydl,pl.path,verbose)
 				elif link.typ=="dt":
 					sprintn("DIRECT ",conf.links.index(link)+1)
-					direct(link.link,conf.files,verbose)
+					direct(link.link,conf.files,pl.path,verbose)
 				else:
 					raise ValueError("Invalid link type")
 			sprintn("Finished")
-	except Exception as e:
-		print("Some major Error happened:",e)
 	finally:
 		print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
 
@@ -314,5 +353,5 @@ if __name__=="__main__":
 		warn=True
 	else:
 		warn=False
-	YDL_OPTS={"outtmpl":"RYTD_TMP","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
-	main(configure=configure,verbose=verbose)
+	main(configure=configure,verbose=verbose,warn=warn)
+
