@@ -105,7 +105,7 @@ class Config():
 	def load(self):
 		status=self.load_from_file(self.curdir)
 		self.load_files()
-		self.dump(self.conffile)
+		self.dump()
 	def load_files(self):
 		for dirpath, dirnames, filenames in os.walk(self.homedir):
 			for f in filenames:
@@ -136,33 +136,75 @@ class Config():
 			finally:
 				conffile.close()
 	def set_tings(self):
-		f=self.curdir+"/.rytdconf"
 		inpot=""
+		curpl=0
+		print("""
+Enter as many lines as you want like this:
+[command] [argument]
+
+Aviable commands:
+	new
+		creates a new playlist in the path specified after that
+	add
+		adds whatever comes after it to the currently selected playlist
+	select
+		selects the playlist in the specified path
+	reset
+		deletes all playlists
+""")
 		while not inpot in ("EOF","\"EOF\""):
-			inpot=input("Paste one Link at a time in here, and finish the input with \"EOF\". If you want to delete all existing links, type \"RESET\".\n")
-			if not inpot in ("EOF","\"EOF\""):
-				if inpot in ("RESET","\"RESET\""):
-					self.links=[]
-					print("Resetted")
-				else:
-					self.links.append(inpot)
-					if random.randrange(0,200)==69:
-						print("okay...\n...go ahead...")
-		inpot=input("Specify ")
-		self.dump(f)
+			if " " in inpot or "\t" in inpot:
+				try:
+					command,argument=inpot.split()
+				except ValueError:
+					sprintn("Couldn't get command and/or argument")
+			else:
+				command=inpot
+			command=command.lower()
+			
+			if command=="reset":
+				self.links=[]
+				sprintn("Resetted")
+			elif command=="new":
+				
+			elif command=="":
+				pass
+			elif command.startswith("["):
+				sprintn("No, I meant without the brackets.")
+			elif command=="add":
+				self.links[curpl].append()
+				if random.randrange(0,200)==69:
+					sprintn("okay...\n...go ahead...")
+				sprintn("Added ",link," to ",self.links[curpl].path)
+			else:
+				sprintn("Invalid command:",inpot)
+			inpot=input("")
+		self.dump()
 		quit()
-	def dump(self,f):
-		links={}
-		for link in self.links:
-			links[link.link]=link.typ
+	def dump(self):
+		sprintr("Dumping settings...")
+		playlists={}
+		for playlist in self.links:
+			links={}
+			for link in playlist:
+				links[link.link]=link.typ
+			playlists[playlist.path]=links
+			
 		sett={"conffile":self.conffile,
-			 "links":   links,
+			 "playlists":playlists.keys(),
 			 "homedir": self.homedir}
-		conffile=open(f,"w+")
+		conffile=open(self.conffile,"w+")
 		try:
 			json.dump(sett,conffile)
 		finally:
 			conffile.close()
+		for path, links in playlists.items():
+			plfile=open(path,"w+")
+			try:
+				json.dump(links,plfile)
+			finally:
+				plfile.close()
+		sprintn("Successfully dumped settings.")
 
 class Logger():
 	def __init__(self,warn=False,verbose=False):
@@ -182,10 +224,14 @@ class RLink():
 		self.link=link
 		self.typ=typ	#pl for youtube playlist, yt for youtube video, dt for direct file link, xx for everything else
 
-class RLinkArray():
-	def __init__(self,links,path:str):
+class RLinkArray(list):
+	def __init__(self,links:"list of RLink",path:str):
 		self.links=links
 		self.path=path
+	def __iter__(self):
+		return self.links
+	def append(self,*args):
+		self.link.append(*args)
 
 def main(manmode=False,verbose=False,configure=False):
 	global conf
