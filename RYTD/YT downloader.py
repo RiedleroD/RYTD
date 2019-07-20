@@ -182,6 +182,11 @@ class RLink():
 		self.link=link
 		self.typ=typ	#pl for youtube playlist, yt for youtube video, dt for direct file link, xx for everything else
 
+class RLinkArray():
+	def __init__(self,links,path:str):
+		self.links=links
+		self.path=path
+
 def main(manmode=False,verbose=False,configure=False):
 	global conf
 	conf=Config()
