@@ -103,8 +103,10 @@ class Config():
 		self.conffile=self.curdir+"/.rytdconf"
 		self.stats={True:0,None:0,False:0}
 	def load(self):
+		sprintr("Loading Settings...")
 		status=self.load_from_file(self.curdir)
 		self.load_files()
+		sprintn("Loaded Settings    ")
 		self.dump()
 	def load_files(self):
 		for playlist in self.links:
@@ -213,7 +215,7 @@ Aviable commands:
 		self.dump()
 		quit()
 	def dump(self):
-		sprintr("Dumping settings...")
+		sprintr("Dumping Settings...")
 		playlists={}
 		for playlist in self.links:
 			links={}
@@ -234,7 +236,7 @@ Aviable commands:
 				json.dump(links,plfile)
 			finally:
 				plfile.close()
-		sprintn("Successfully dumped settings.")
+		sprintn("Dumped settings    ")
 
 class Logger():
 	def __init__(self,warn=False,verbose=False):
@@ -283,6 +285,8 @@ class RLinkArray(list):
 		return self.links.remove(*args,**kwargs)
 	def reverse(self,*args,**kwargs):
 		return self.links.reverse(*args,**kwargs)
+	def __len__(self,*args,**kwargs):
+		return self.links.__len__(*args,**kwargs)
 
 def main(manmode=False,warn=False,verbose=False,configure=False):
 	global conf
@@ -304,24 +308,25 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
 	try:
 		for pl in conf.links:
+			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
 					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
 					with YDL(YDL_OPTS) as ydl:
-						sprintn("VIDEO ",pl.index(link)+1)
+						sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 						ydl.download(["https://youtu.be/"+link.link])
 				elif link.typ=="xx":
 					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
 					with YDL(YDL_OPTS) as ydl:
-						sprintn("EXTERN ",pl.index(link)+1)
+						sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
 						ydl.download([link.link])
 				elif link.typ=="pl":
 					YDL_OPTS["outtmpl"]="RYTD_TMP"
+					sprintn(pl.index(link)+1,"/",len(pl),":\033[36mPLAYLIST\033[0m")
 					with YDL(YDL_OPTS) as ydl:
-						sprintn("PLAYLIST ",pl.index(link)+1)
 						playlist(link.link,conf.files,ydl,pl.path,verbose)
 				elif link.typ=="dt":
-					sprintn("DIRECT ",conf.links.index(link)+1)
+					sprintn(pl.index(link)+1,"/",len(pl),":\033[37mDIRECT\033[0m")
 					direct(link.link,conf.files,pl.path,verbose)
 				else:
 					raise ValueError("Invalid link type")
