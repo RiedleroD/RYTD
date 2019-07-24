@@ -1,4 +1,4 @@
-import pytube, os, sys, io, mutagen, json
+import pytube, os, sys, io, mutagen, json,time
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
 from traceback import TracebackException as TBException
@@ -13,11 +13,15 @@ from traceback import TracebackException as TBException
 #	<link>
 #		a link.
 #
+
 def sprint(*s:str,sep:str="",end:str="",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
+	print(*s,sep=sep,end=end,flush=flush)
+def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
+	
 	print(*s,sep=sep,end=end,flush=flush)
 
 def bashsafe(s:str):
@@ -27,12 +31,24 @@ def bashsafe(s:str):
 	s=s.replace("\"","`")
 	return s
 
+def progrbar(percent):
+	percent=round(percent/2,1)
+	chrs=(""," ","▏","▎","▍","▌","▋","▊","▉","█")
+	end=chrs[round((percent%1)*10)]
+	amount=int(percent)
+	if end!="":
+		return "▕"+"█"*amount+end+" "*(49-amount)+"▏"
+	else:
+		return "▕"+"█"*amount+" "*(50-amount)+"▏"
+
 def direct(link,files,verbose=False):
 	fname=link.split("/")[-1]
 	if not fname in conf.files.values():
 		f=urlreq.urlopen(link)
 		with open(conf.homedir+"/"+fname,"wb") as download:
 			download.write(f.read())
+
+_hookdata={}
 
 def singvidhook(d):
 	#'status': 				str<'downloading' | 'finished'>
@@ -46,22 +62,32 @@ def singvidhook(d):
 	#'_total_bytes_str':	str<total bytes>
 	#'_elapsed_str':		str<elapsed time in seconds>
 	#'_eta_str':			str<remaining time in seconds>
+	#all of this is very inconsistent, sometimes the values are there, sometimes not.
+	for key,value in d.items():
+		_hookdata[key]=value
 	stat=d["status"]
 	try:
 		elapsed=round(d['elapsed'],2)
 	except KeyError:
 		elapsed=""
-	try:
-		eta=d['eta']
-	except KeyError:
-		eta=""
 	if stat=="downloading":
-		sprint("\033[46m[Downloading]\033[0m ",eta,"    ",end="\033[u")
+		try:
+			eta=d['_eta_str']
+		except KeyError:
+			try:
+				eta=str(d["eta"])
+			except KeyError:
+				eta=""
+		try:
+			percent=d["downloaded_bytes"]/d["total_bytes"]*100
+		except KeyError:
+			percent=d["downloaded_bytes"]/_hookdata["total_bytes"]*100
+		sprint("\033[46m[Downloading]\033[0m ",eta," ",progrbar(percent),"\033[",len(str(eta))+67,"D")
 	elif stat=="finished":
-		sprint("\033[42m[Finished]\033[0m ",elapsed,end="   \n\033[46m[Converting]\033[0m\r")
+		sprint("\033[42m[Finished]\033[0m ",elapsed,end="   \n\033[46m[Converting]\033[0m\r",flush=False)
 		conf.stats[True]+=1
 	else:
-		print("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s",flush=True)
+		sprint("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s")
 
 def playlist(link,files,ydl,path,verbose=False):
 	sprintr("Checking...")
@@ -154,7 +180,7 @@ class Config():
 	def set_tings(self):
 		inpot=""
 		curpl=0
-		print("""
+		sprintn("""
 Enter as many lines as you want like this:
 [command] [argument]
 
@@ -198,7 +224,7 @@ Aviable commands:
 					try:
 						f.write("{}")
 					except OSError:
-						print("Couldn't write to file.")
+						sprintn("Couldn't write to file.")
 					
 			elif command=="":			#empty string
 				pass
@@ -332,7 +358,7 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 					raise ValueError("Invalid link type")
 			sprintn("Finished")
 	finally:
-		print("\nDownloaded: "+str(conf.stats[True])+"\nExisting: "+str(conf.stats[None])+"\nFailed: "+str(conf.stats[False]))
+		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
