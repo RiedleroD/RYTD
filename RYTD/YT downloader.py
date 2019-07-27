@@ -1,6 +1,7 @@
 import pytube, os, sys, io, mutagen, json,time
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
+import subprocess as supro
 from traceback import TracebackException as TBException
 #
 #POSSIBLE ARGS:
@@ -24,11 +25,9 @@ def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	
 	print(*s,sep=sep,end=end,flush=flush)
 
-def bashsafe(s:str):
+def safename(s:str):
 	s=s.replace("/","|")
 	s=s.replace("\\","|")
-	s=s.replace("\'","`")
-	s=s.replace("\"","`")
 	return s
 
 def progrbar(percent):
@@ -72,24 +71,31 @@ def singvidhook(d):
 		elapsed=""
 	if stat=="downloading":
 		try:
-			eta=d['_eta_str']
+			eta=d['eta']
 		except KeyError:
-			try:
-				eta=str(d["eta"])
-			except KeyError:
-				eta=""
+			eta=""
 		try:
 			percent=d["downloaded_bytes"]/d["total_bytes"]*100
 		except KeyError:
-			percent=d["downloaded_bytes"]/_hookdata["total_bytes"]*100
-		sprint("\033[46m[Downloading]\033[0m ",eta," ",progrbar(percent),"\033[",len(str(eta))+67,"D")
+			try:
+				percent=d["downloaded_bytes"]/_hookdata["total_bytes"]*100
+			except KeyError:
+				percent=0
+				sprint("\033[s\033[46m[Downloading]\033[0m ",eta," ","?"*50,end="\033[u")
+				return
+		sprint("\033[s\033[46m[Downloading]\033[0m ",eta," ",progrbar(percent),end="    \033[u")
 	elif stat=="finished":
-		sprint("\033[42m[Finished]\033[0m ",elapsed,end="   \n\033[46m[Converting]\033[0m\r",flush=False)
+		sprintn("\033[42m[Finished]\033[0m ",elapsed,"  ")
 		conf.stats[True]+=1
+		try:
+			del _hookdata["total_bytes"]
+		except KeyError:
+			pass
 	else:
 		sprint("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s")
 
 def playlist(link,files,ydl,path,verbose=False):
+	global curproc
 	sprintr("Checking...")
 	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
 	if verbose:
@@ -99,8 +105,15 @@ def playlist(link,files,ydl,path,verbose=False):
 		if verbose:
 			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ")
 		else:
-			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i,": \033[7m[Checking...]\033[27m\033[13D")
+			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i," : \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
+			if curproc!=None and curproc.wait()!=0:
+					conf.stats[False]+=1
+					conf.stats[True]-=1
+			try:
+				os.remove(conf.curdir+"/RYTD_TMP")
+			except OSError:
+				pass
 			try:
 				 info_dict=ydl.extract_info("https://youtube.com"+link)
 			except KeyboardInterrupt:
@@ -110,15 +123,19 @@ def playlist(link,files,ydl,path,verbose=False):
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
-				command="ffmpeg -v 0 -i '"+conf.curdir+"/RYTD_TMP' -vn -y -metadata comment='"+info_dict["id"]+"' '"+path+"/"+bashsafe(info_dict["title"])+".opus'"
-				os.system(command)
-				os.remove(conf.curdir+"/RYTD_TMP")
+				command=["ffmpeg","-v","0","-i",conf.curdir+"/RYTD_TMP","-vn","-y","-metadata","comment="+info_dict["id"],path+"/"+safename(info_dict["title"])+".opus"]
+				if verbose:
+					sprintn(*command)
+				curproc=supro.Popen(command)
 		else:
 			if verbose:
 				sprintn("\033[7m[Exists]\033[0m")
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
 			conf.stats[None]+=1
+	if curproc!=None and curproc.wait()!=0:
+		conf.stats[False]+=1
+		conf.stats[True]-=1
 
 class Config():
 	def __init__(self):
@@ -260,6 +277,13 @@ Aviable commands:
 			plfile=open(f,"w+")
 			try:
 				json.dump(links,plfile)
+			except KeyboardInterrupt:
+				print("DONT FUCKING DO THAT, IT'S VERY FUCKING FUCK FOR THE CONFIG FILE")
+				try:
+					json.dump(links,plfile)
+				except KeyboardInterrupt:
+					print("ok then. It's potentially corrupted now.\nI won't help you, you are fucking stupid.")
+					quit()
 			finally:
 				plfile.close()
 		sprintn("Dumped settings    ")
@@ -338,13 +362,13 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 			for link in pl:
 				if link.typ=="yt":
 					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 					with YDL(YDL_OPTS) as ydl:
-						sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 						ydl.download(["https://youtu.be/"+link.link])
 				elif link.typ=="xx":
 					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
 					with YDL(YDL_OPTS) as ydl:
-						sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
 						ydl.download([link.link])
 				elif link.typ=="pl":
 					YDL_OPTS["outtmpl"]="RYTD_TMP"
@@ -358,9 +382,18 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 					raise ValueError("Invalid link type")
 			sprintn("Finished")
 	finally:
+		if curproc!=None and curproc.wait()!=0:
+			conf.stats[False]+=1
+			conf.stats[True]-=1
+		try:
+			os.remove(conf.curdir+"/RYTD_TMP")
+		except OSError:
+			pass
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
+	global curproc
+	curproc=None
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
 		print("""HELP
 
