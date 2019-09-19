@@ -95,7 +95,7 @@ def singvidhook(d):
 		sprint("HOLY F A NEW STATUS JUST GOT RECOGNIZED:",stat,end="\n\033[s")
 
 def playlist(link,files,ydl,path,verbose=False):
-	global curproc
+	global curprocs
 	sprintr("Checking...")
 	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
 	if verbose:
@@ -107,35 +107,47 @@ def playlist(link,files,ydl,path,verbose=False):
 		else:
 			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i," : \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
-			if curproc!=None and curproc.wait()!=0:
+			for proc in curprocs:
+				procstate=proc.poll()
+				if procstate==0:
+					conf.stats[True]+=1
+					if verbose:
+						sprintn("\033[42mConversion Succeeded\033[0m")
+					del proc
+				elif procstate!=None:
 					conf.stats[False]+=1
-					conf.stats[True]-=1
+					if verbose:
+						sprintn("\033[41mConversion Failed\033[0m")
+					del proc
 			try:
-				os.remove(conf.curdir+"/RYTD_TMP")
+				os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
 			except OSError:
-				pass
+				if verbose:
+					sprintn("\033[41mFailed to delete temp file\033[0m")
 			try:
 				 info_dict=ydl.extract_info("https://youtube.com"+link)
 			except KeyboardInterrupt:
-				raise KeyboardInterrupt()
 				conf.stats[False]+=1
+				raise KeyboardInterrupt()
 			except Exception as e:
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
-				command=["ffmpeg","-v","0","-i",conf.curdir+"/RYTD_TMP","-vn","-y","-metadata","comment="+info_dict["id"],path+"/"+safename(info_dict["title"])+".opus"]
+				command=["ffmpeg","-v","0","-i","-","-vn","-y","-metadata","comment="+info_dict["id"],os.path.join(path,safename(info_dict["title"])+".opus")]
 				if verbose:
 					sprintn(*command)
-				curproc=supro.Popen(command)
+				curprocs.append(supro.Popen(command,stdin=supro.PIPE))
+				with open(os.path.join(conf.curdir,"RYTD_TMP"),"rb") as f:
+					curprocs[-1].stdin.write(f.read())
+					curprocs[-1].stdin.close()
+				if verbose:
+					sprintn("")
 		else:
 			if verbose:
 				sprintn("\033[7m[Exists]\033[0m")
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
 			conf.stats[None]+=1
-	if curproc!=None and curproc.wait()!=0:
-		conf.stats[False]+=1
-		conf.stats[True]-=1
 
 class Config():
 	def __init__(self):
@@ -300,6 +312,7 @@ class Logger():
 			sprintn(msg)
 	def error(self,msg):
 		sprintn(msg)
+		conf.stats[False]+=1
 
 class RLink():
 	def __init__(self,link:str,typ:str):
@@ -382,9 +395,27 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 					raise ValueError("Invalid link type")
 			sprintn("Finished")
 	finally:
-		if curproc!=None and curproc.wait()!=0:
-			conf.stats[False]+=1
-			conf.stats[True]-=1
+		x=0
+		for proc in curprocs:
+			x+=1
+			l=len(curprocs)
+			sprintr("Waiting for subprocess ",x,"/",l)
+			try:
+				proc.wait()
+			except KeyboardInterrupt:
+				proc.terminate()
+			try:
+				proc.wait(timeout=1)
+			except supr.TimeoutExpired:
+				proc.kill()
+			if proc.poll()==0:
+				conf.stats[True]+=1
+				if verbose:
+					sprintn("\033[42mConversion ",x,"/",l," Succeeded\033[0m   ")
+			else:
+				conf.stats[False]+=1
+				if verbose:
+					sprintn("\033[41mConversion ",x,"/",l," Failed with exit code ",proc.poll(),"\033[0m")
 		try:
 			os.remove(conf.curdir+"/RYTD_TMP")
 		except OSError:
@@ -392,8 +423,8 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
-	global curproc
-	curproc=None
+	global curprocs
+	curprocs=[]
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
 		print("""HELP
 
