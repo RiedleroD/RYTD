@@ -1,5 +1,34 @@
 #!usr/bin/python3
-import pytube, os, sys, io, mutagen, json,time
+import sys
+if __name__=="__main__":
+	global curprocs
+	curprocs=[]
+	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
+		print("""HELP
+
+	--configure | -c |   | Triggers configuration and quits after this.
+	--help      | -h | ? | Triggers help and quits.
+	--overwrite | -o |   | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
+	--warnings  | -w | ! | Prints ocurring warnings.
+	--verbose   | -v | … | Verbose.""")
+		quit()
+	if "--configure" in sys.argv or "-c" in sys.argv:
+		configure=True
+		print("CONFIGURE")
+	else:
+		configure=False
+	if "--verbose" in sys.argv or "-v" in sys.argv or "…" in sys.argv:
+		verbose=True
+		print("VERBOSE")
+	else:
+		verbose=False
+	if "--warnings" in sys.argv or "-w" in sys.argv or "!" in sys.argv:
+		warn=True
+	else:
+		warn=False
+	if verbose:
+		print("IMPORTING MODULES")
+import pytube, os, io, mutagen, json,time
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
 import subprocess as supro
@@ -17,6 +46,9 @@ from psutil import disk_partitions
 #	<link>
 #		a link.
 #
+
+if verbose:
+	print("DEFINING FUNCTIONS AND CLASSES")
 
 def sprint(*s:str,sep:str="",end:str="",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
@@ -49,7 +81,7 @@ def direct(link,files,verbose=False):
 	fname=os.path.basename(link)
 	if not fname in conf.files.values():
 		f=urlreq.urlopen(link)
-		with open(os.path.abspath(os.path.join(conf.homedir,fname)),"wb") as download:
+		with open(os.path.join(conf.homedir,fname),"wb") as download:
 			download.write(f.read())
 
 _hookdata={}
@@ -131,7 +163,7 @@ def playlist(link,files,ydl,path,verbose=False):
 					if verbose:
 						sprintn("\033[41mFailed to delete temp file (",os.path.join(conf.curdir,"RYTD_TMP"),")\033[0m")
 			try:
-				 info_dict=ydl.extract_info(os.path.join("https://youtube.com",link))
+				 info_dict=ydl.extract_info(os.path.join("https://youtu.be",i))
 			except KeyboardInterrupt:
 				conf.stats[False]+=1
 				raise KeyboardInterrupt()
@@ -165,10 +197,8 @@ class Config():
 		self.conffile=os.path.abspath(os.path.join(self.curdir,".rytdconf"))
 		self.stats={True:0,None:0,False:0}
 	def load(self):
-		sprintr("Loading Settings...")
 		status=self.load_from_file(self.curdir)
 		self.load_files()
-		sprintn("Loaded Settings    ")
 		self.dump()
 	def load_files(self):
 		for playlist in self.links:
@@ -360,8 +390,12 @@ class RLinkArray(list):
 
 def main(manmode=False,warn=False,verbose=False,configure=False):
 	global conf
+	if verbose:
+		sprintr("Loading Settings...")
 	conf=Config()
 	conf.load()
+	if verbose:
+		sprintn("Loaded Settings    ")
 	if configure:
 		conf.set_tings()
 		quit()
@@ -375,7 +409,7 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 			manmode=True
 	if manmode:
 		quit()
-	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose)}
+	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True}
 	try:
 		for pl in conf.links:
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
@@ -430,30 +464,5 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
-	global curprocs
-	curprocs=[]
-	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
-		print("""HELP
-
---configure | -c |   | Triggers configuration and quits after this.
---help      | -h | ? | Triggers help and quits.
---overwrite | -o |   | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
---warnings  | -w | ! | Prints ocurring warnings.
---verbose   | -v | … | Verbose.""")
-		quit()
-	if "--configure" in sys.argv or "-c" in sys.argv:
-		configure=True
-		print("CONFIGURE")
-	else:
-		configure=False
-	if "--verbose" in sys.argv or "-v" in sys.argv or "…" in sys.argv:
-		verbose=True
-		print("VERBOSE")
-	else:
-		verbose=False
-	if "--warnings" in sys.argv or "-w" in sys.argv or "!" in sys.argv:
-		warn=True
-	else:
-		warn=False
 	main(configure=configure,verbose=verbose,warn=warn)
 
