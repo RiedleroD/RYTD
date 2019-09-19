@@ -1,8 +1,11 @@
+#!usr/bin/python3
 import pytube, os, sys, io, mutagen, json,time
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
 import subprocess as supro
 from traceback import TracebackException as TBException
+from psutil import disk_partitions
+
 #
 #POSSIBLE ARGS:
 #	--conf
@@ -22,13 +25,15 @@ def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
 def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
-	
 	print(*s,sep=sep,end=end,flush=flush)
 
 def safename(s:str):
-	s=s.replace("/","|")
-	s=s.replace("\\","|")
-	return s
+	forbidden_chars=["/"]
+	if conf.os=="posix":
+		pass
+	elif conf.os=="nt":		#here comes the shit part
+		forbidden_chars+=[chr(x) for x in range(32)]+["<",">",":","\"","\\","|","?","*"]	#There are certain file names that aren't allowed, like CON, PRN, AUX, ect. idk what I should do in case someone tries to name a file like that, so I'll let it slip.
+	return "".join([c for c in s if not c in forbidden_chars]).rstrip()
 
 def progrbar(percent):
 	percent=round(percent/2,1)
@@ -41,10 +46,10 @@ def progrbar(percent):
 		return "▕"+"█"*amount+" "*(50-amount)+"▏"
 
 def direct(link,files,verbose=False):
-	fname=link.split("/")[-1]
+	fname=os.path.basename(link)
 	if not fname in conf.files.values():
 		f=urlreq.urlopen(link)
-		with open(conf.homedir+"/"+fname,"wb") as download:
+		with open(os.path.abspath(os.path.join(conf.homedir,fname)),"wb") as download:
 			download.write(f.read())
 
 _hookdata={}
@@ -103,7 +108,7 @@ def playlist(link,files,ydl,path,verbose=False):
 	for link in links:
 		i=link.split("watch?v=")[-1]
 		if verbose:
-			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43m",i,"\033[49m ")
+			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43mhttps://youtu.be/",i,"\033[49m ")
 		else:
 			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i," : \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
@@ -119,13 +124,14 @@ def playlist(link,files,ydl,path,verbose=False):
 					if verbose:
 						sprintn("\033[41mConversion Failed\033[0m")
 					del proc
+			if os.path.exists(os.path.join(conf.curdir,"RYTD_TMP")):
+				try:
+					os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
+				except OSError:
+					if verbose:
+						sprintn("\033[41mFailed to delete temp file (",os.path.join(conf.curdir,"RYTD_TMP"),")\033[0m")
 			try:
-				os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
-			except OSError:
-				if verbose:
-					sprintn("\033[41mFailed to delete temp file\033[0m")
-			try:
-				 info_dict=ydl.extract_info("https://youtube.com"+link)
+				 info_dict=ydl.extract_info(os.path.join("https://youtube.com",link))
 			except KeyboardInterrupt:
 				conf.stats[False]+=1
 				raise KeyboardInterrupt()
@@ -151,11 +157,12 @@ def playlist(link,files,ydl,path,verbose=False):
 
 class Config():
 	def __init__(self):
+		self.os=os.name
 		self.curdir=os.path.abspath(os.path.dirname(__file__))
 		os.chdir(self.curdir)
 		self.links=[]
 		self.files={}
-		self.conffile=self.curdir+"/.rytdconf"
+		self.conffile=os.path.abspath(os.path.join(self.curdir,".rytdconf"))
 		self.stats={True:0,None:0,False:0}
 	def load(self):
 		sprintr("Loading Settings...")
@@ -170,7 +177,7 @@ class Config():
 					name=os.path.splitext(f)[0]
 					i=0
 					try:
-						i=mutagen.File(dirpath+"/"+f)["description"][0]
+						i=mutagen.File(os.path.join(dirpath,f))["description"][0]
 					except TypeError:
 						pass
 					except KeyError:
@@ -179,7 +186,7 @@ class Config():
 						self.files[i]=name
 	def load_from_file(self,path):
 		try:
-			conffile=open(self.curdir+"/.rytdconf","r")
+			conffile=open(os.path.abspath(os.path.join(self.curdir,".rytdconf")),"r")
 		except OSError:
 			self.set_tings()
 		else:
@@ -234,17 +241,17 @@ Aviable commands:
 			else:
 				command=inpot
 			command=command.lower()
-			
 			if command=="reset":		#reset
 				self.links=[]
 				sprintn("Resetted")
 			elif command=="new":		#new
-				if argument.endswith("/"):
-					path=argument+"default.rpl"
-				elif argument.endswith(".rpl"):
-					path=argument
+				path=os.path.abspath(argument)
+				if os.path.isdir(path):
+					path=os.path.join(path,"default.rpl")
+				elif path.endswith(".rpl"):
+					path=os.path.abspath(path)
 				else:
-					path=argument+".rpl"
+					path=os.path.abspath(path+".rpl")
 				try:
 					f=open(path,"w+")
 				except OSError:
@@ -374,12 +381,12 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
-					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title).%(ext)")
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 					with YDL(YDL_OPTS) as ydl:
-						ydl.download(["https://youtu.be/"+link.link])
+						ydl.download([os.path.join("https://youtu.be",link.link)])
 				elif link.typ=="xx":
-					YDL_OPTS["outtmpl"]=pl.path+"%(title).%(ext)"
+					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title).%(ext)")
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						ydl.download([link.link])
@@ -417,7 +424,7 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 				if verbose:
 					sprintn("\033[41mConversion ",x,"/",l," Failed with exit code ",proc.poll(),"\033[0m")
 		try:
-			os.remove(conf.curdir+"/RYTD_TMP")
+			os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
 		except OSError:
 			pass
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
