@@ -26,6 +26,10 @@ if __name__=="__main__":
 		warn=True
 	else:
 		warn=False
+	if "--manmode" in sys.argv or "-m" in sys.argv:
+		manmode=True
+	else:
+		manmode=False
 	if verbose:
 		print("IMPORTING MODULES")
 import pytube, os, io, mutagen, json,time
@@ -399,19 +403,13 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 	if configure:
 		conf.set_tings()
 		quit()
-	for arg in sys.argv:
-		if "/watch?v=" in arg:
-			with YDL(YDL_OPTS) as ydl:
-				ydl.download([arg])
-			manmode=True
-		elif "/playlist?list=" in arg:
-			playlist(arg)
-			manmode=True
-	if manmode:
-		quit()
 	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True}
+	if manmode:
+		links=[arg for arg in sys.argv if not arg.startswith("-")]
+	else:
+		links=conf.links
 	try:
-		for pl in conf.links:
+		for pl in links:
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
@@ -464,5 +462,5 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
-	main(configure=configure,verbose=verbose,warn=warn)
+	main(manmode=manmode,configure=configure,verbose=verbose,warn=warn)
 
