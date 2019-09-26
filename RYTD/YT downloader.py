@@ -64,14 +64,7 @@ def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 
 def safename(s:str):
-	s=s.replace("\"","'")
-	forbidden_chars=["/"]
-	if conf.os=="posix":
-		pass
-	elif conf.os=="nt":		#here comes the shit part
-		forbidden_chars+=[chr(x) for x in range(32)]+["<",">",":","\\","|","?","*"]	#There are certain file names that aren't allowed, like CON, PRN, AUX, ect. idk what I should do in case someone tries to name a file like that, so I'll let it slip.
-	return "".join([c for c in s if not c in forbidden_chars]).rstrip()
-
+	return s.replace("\"","'").replace("|","\u2223").replace(":","\u0589").replace("*","\u033d").replace("?","\uff1f").replace("/","\u2215").replace("\\","\uFF3C").replace("<","‹").replace(">","›")
 def progrbar(percent):
 	percent=round(percent/2,1)
 	chrs=(""," ","▏","▎","▍","▌","▋","▊","▉","█")
