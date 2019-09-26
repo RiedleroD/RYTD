@@ -169,7 +169,19 @@ def playlist(link,files,ydl,path,verbose=False):
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
-				command=["ffmpeg","-v","0","-i","-","-vn","-y","-metadata","comment="+info_dict["id"],os.path.join(path,safename(info_dict["title"])+".opus")]
+				command=[
+					"ffmpeg","-v","0","-i","-","-vn","-y",
+					"-metadata","composer="+info_dict["creator"],
+					"-metadata","license="+info_dict["license"],
+					"-metadata","rating="+str(int(float(info_dict["average_rating"]))*20),
+					"-metadata","dislikes="+info_dict["dislike_count"],
+					"-metadata","likes="+info_dict["like_count"],
+					"-metadata","views="+info_dict["view_count"],
+					"-metadata","comment="+info_dict["description"],
+					"-metadata","artist="+info_dict["uploader"],
+					"-metadata","rytdid="+info_dict["id"],
+					"-metadata","title="+info_dict["title"],
+					os.path.join(path,safename(info_dict["title"])+".opus")]
 				if verbose:
 					sprintn(*command)
 				curprocs.append(supro.Popen(command,stdin=supro.PIPE))
