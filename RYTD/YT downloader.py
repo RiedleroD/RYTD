@@ -64,7 +64,7 @@ def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
 	print(*s,sep=sep,end=end,flush=flush)
 
 def safename(s:str):
-	s.replace("\"","'")
+	s=s.replace("\"","'")
 	forbidden_chars=["/"]
 	if conf.os=="posix":
 		pass
