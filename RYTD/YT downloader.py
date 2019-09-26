@@ -33,6 +33,7 @@ if __name__=="__main__":
 	if verbose:
 		print("IMPORTING MODULES")
 import pytube, os, io, mutagen, json,time
+from base64 import b64encode
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
 import subprocess as supro
@@ -65,6 +66,14 @@ def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
 
 def safename(s:str):
 	return s.replace("\"","'").replace("|","\u2223").replace(":","\u0589").replace("*","\u033d").replace("?","\uff1f").replace("/","\u2215").replace("\\","\uFF3C").replace("<","‹").replace(">","›")
+
+def get_base64image(link:str):
+	img=b64encode(urlreq.urlopen(link).read())
+	if len(img)<=128:
+		return img
+	else:
+		raise Exception("Image is too big")
+
 def progrbar(percent):
 	percent=round(percent/2,1)
 	chrs=(""," ","▏","▎","▍","▌","▋","▊","▉","█")
@@ -171,17 +180,27 @@ def playlist(link,files,ydl,path,verbose=False):
 			else:
 				command=[
 					"ffmpeg","-v","0","-i","-","-vn","-y",
-					"-metadata","composer="+info_dict["creator"],
-					"-metadata","license="+info_dict["license"],
-					"-metadata","rating="+str(int(float(info_dict["average_rating"]))*20),
-					"-metadata","dislikes="+info_dict["dislike_count"],
-					"-metadata","likes="+info_dict["like_count"],
-					"-metadata","views="+info_dict["view_count"],
-					"-metadata","comment="+info_dict["description"],
-					"-metadata","artist="+info_dict["uploader"],
+					"-metadata","copyright="+str(info_dict["license"]),
+					"-metadata","rating="+str(int(info_dict["average_rating"])*20),
+					"-metadata","dislikes="+str(info_dict["dislike_count"]),
+					"-metadata","likes="+str(info_dict["like_count"]),
+					"-metadata","views="+str(info_dict["view_count"]),
+					"-metadata","comment="+str(info_dict["description"]),
 					"-metadata","rytdid="+info_dict["id"],
-					"-metadata","title="+info_dict["title"],
-					os.path.join(path,safename(info_dict["title"])+".opus")]
+					"-metadata","title="+info_dict["title"]]
+				try:
+					thumbnail=get_base64image(info_dict["thumbnail"])
+				except Exception as e:
+					if verbose:
+						tbe=TBException.from_exception(e)
+						print("\033[41mCouldn't get thumbnail:",tbe.exc_type.__name__,"-",tbe._str)
+				else:
+					command+=["-metadata",b"metadata_block_picture="+thumbnail]
+				if info_dict["creator"]!=None:
+					command+=["-metadata","artist="+str(info_dict["creator"])]
+				else:
+					command+=["-metadata","artist="+info_dict["uploader"]]
+				command.append(os.path.join(path,safename(info_dict["title"])+".opus"))
 				if verbose:
 					sprintn(*command)
 				curprocs.append(supro.Popen(command,stdin=supro.PIPE))
@@ -215,15 +234,25 @@ class Config():
 			for dirpath, dirnames, filenames in os.walk(playlist.path):
 				for f in filenames:
 					name=os.path.splitext(f)[0]
-					i=0
+					muf=mutagen.File(os.path.join(dirpath,f))
+					if muf==None:
+						continue
 					try:
-						i=mutagen.File(os.path.join(dirpath,f))["description"][0]
-					except TypeError:
-						pass
+						i=muf["rytdid"]
+						if i!=None:
+							i=i[0]
+						else:
+							raise KeyError()
 					except KeyError:
-						pass
-					if i!=0:
-						self.files[i]=name
+						try:
+							i=muf["description"]
+							if i!=None:
+								i=i[0]
+							else:
+								continue
+						except KeyError:
+							continue
+					self.files[i]=name
 	def load_from_file(self,path):
 		try:
 			conffile=open(os.path.abspath(os.path.join(self.curdir,".rytdconf")),"r")
