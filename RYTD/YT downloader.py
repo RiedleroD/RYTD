@@ -6,13 +6,14 @@ if __name__=="__main__":
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
 		print("""HELP
 
-	--configure | -c |   | Triggers configuration and quits after this.
+	--configure | -c | ¢ | Triggers configuration and quits after this.
 	--help      | -h | ? | Triggers help and quits.
-	--overwrite | -o |   | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
+	--overwrite | -o | ø | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
+	--directory	| -d | ð | Overrides the standard download directory with the path specified in the next argument.
 	--warnings  | -w | ! | Prints ocurring warnings.
 	--verbose   | -v | … | Verbose.""")
 		quit()
-	if "--configure" in sys.argv or "-c" in sys.argv:
+	if "--configure" in sys.argv or "-c" in sys.argv or "¢" in sys.argv:
 		configure=True
 		print("CONFIGURE")
 	else:
@@ -26,10 +27,15 @@ if __name__=="__main__":
 		warn=True
 	else:
 		warn=False
-	if "--manmode" in sys.argv or "-m" in sys.argv:
-		manmode=True
+	if "--directory" in sys.argv:
+		custom_dir=sys.argv[sys.argv.index("--directory")+1]
+	elif "-d" in sys.argv:
+		custom_dir=sys.argv[sys.argv.index("-d")+1]
+		print("Switched to custom directory \"",custom_dir,"\"",sep="")
+	elif "ð" in sys.argv:
+		custom_dir=sys.argv[sys.argv.index("ð")+1]
 	else:
-		manmode=False
+		custom_dir=None
 	if verbose:
 		print("IMPORTING MODULES")
 import pytube, os, io, mutagen, json,time
@@ -181,13 +187,17 @@ def playlist(link,files,ydl,path,verbose=False):
 				command=[
 					"ffmpeg","-v","0","-i","-","-vn","-y",
 					"-metadata","copyright="+str(info_dict["license"]),
-					"-metadata","rating="+str(int(info_dict["average_rating"])*20),
-					"-metadata","dislikes="+str(info_dict["dislike_count"]),
-					"-metadata","likes="+str(info_dict["like_count"]),
-					"-metadata","views="+str(info_dict["view_count"]),
 					"-metadata","comment="+str(info_dict["description"]),
 					"-metadata","rytdid="+info_dict["id"],
 					"-metadata","title="+info_dict["title"]]
+				if info_dict["average_rating"]!=None:
+					command+=["-metadata","rating="+str(int(info_dict["average_rating"])*20)]
+				if info_dict["dislike_count"]!=None:
+					command+=["-metadata","dislikes="+str(int(info_dict["dislike_count"])*20)]
+				if info_dict["like_count"]!=None:
+					command+=["-metadata","likes="+str(int(info_dict["like_count"])*20)]
+				if info_dict["view_count"]!=None:
+					command+=["-metadata","views="+str(int(info_dict["view_count"])*20)]
 				try:
 					thumbnail=get_base64image(info_dict["thumbnail"])
 				except Exception as e:
@@ -217,9 +227,12 @@ def playlist(link,files,ydl,path,verbose=False):
 			conf.stats[None]+=1
 
 class Config():
-	def __init__(self):
+	def __init__(self,custom_dir):
 		self.os=os.name
-		self.curdir=os.path.abspath(os.path.dirname(__file__))
+		if custom_dir==None:
+			self.curdir=os.path.abspath(os.path.dirname(__file__))
+		else:
+			self.curdir=os.path.abspath(os.path.dirname(custom_dir))
 		os.chdir(self.curdir)
 		self.links=[]
 		self.files={}
@@ -427,11 +440,11 @@ class RLinkArray(list):
 	def __len__(self,*args,**kwargs):
 		return self.links.__len__(*args,**kwargs)
 
-def main(manmode=False,warn=False,verbose=False,configure=False):
+def main(warn=False,verbose=False,configure=False,custom_dir=None):
 	global conf
 	if verbose:
 		sprintr("Loading Settings...")
-	conf=Config()
+	conf=Config(custom_dir)
 	conf.load()
 	if verbose:
 		sprintn("Loaded Settings    ")
@@ -439,12 +452,8 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 		conf.set_tings()
 		quit()
 	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True}
-	if manmode:
-		links=[arg for arg in sys.argv if not arg.startswith("-")]
-	else:
-		links=conf.links
 	try:
-		for pl in links:
+		for pl in conf.links:
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
@@ -497,5 +506,5 @@ def main(manmode=False,warn=False,verbose=False,configure=False):
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
-	main(manmode=manmode,configure=configure,verbose=verbose,warn=warn)
+	main(configure=configure,verbose=verbose,warn=warn,custom_dir=custom_dir)
 
