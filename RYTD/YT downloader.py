@@ -185,7 +185,7 @@ def playlist(link,files,ydl,path,verbose=False):
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
 				command=[
-					"ffmpeg","-v","0","-i","-","-vn","-y",
+					"ffmpeg","-v","0","-i","RYTD_TMP_"+info_dict["id"],"-vn","-y",
 					"-metadata","copyright="+str(info_dict["license"]),
 					"-metadata","comment="+str(info_dict["description"]),
 					"-metadata","rytdid="+info_dict["id"],
@@ -212,13 +212,12 @@ def playlist(link,files,ydl,path,verbose=False):
 					command+=["-metadata","artist="+info_dict["uploader"]]
 				command.append(os.path.join(path,safename(info_dict["title"])+".opus"))
 				if verbose:
-					sprintn(*command)
+					sprint("[")
+					sprint(*command,sep=",")
+					sprintn("]")
 				curprocs.append(supro.Popen(command,stdin=supro.PIPE))
-				with open(os.path.join(conf.curdir,"RYTD_TMP"),"rb") as f:
-					curprocs[-1].stdin.write(f.read())
-					curprocs[-1].stdin.close()
 				if verbose:
-					sprintn("")
+					sprintn()
 		else:
 			if verbose:
 				sprintn("\033[7m[Exists]\033[0m")
@@ -258,7 +257,7 @@ class Config():
 							raise KeyError()
 					except KeyError:
 						try:
-							i=muf["description"]
+							i=muf["comment"]
 							if i!=None:
 								i=i[0]
 							else:
@@ -401,7 +400,6 @@ class Logger():
 			sprintn(msg)
 	def error(self,msg):
 		sprintn(msg)
-		conf.stats[False]+=1
 
 class RLink():
 	def __init__(self,link:str,typ:str):
@@ -457,17 +455,17 @@ def main(warn=False,verbose=False,configure=False,custom_dir=None):
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
-					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title).%(ext)")
+					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title)s.%(ext)s")
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						ydl.download([os.path.join("https://youtu.be",link.link)])
 				elif link.typ=="xx":
-					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title).%(ext)")
+					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title)s.%(ext)s")
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						ydl.download([link.link])
 				elif link.typ=="pl":
-					YDL_OPTS["outtmpl"]="RYTD_TMP"
+					YDL_OPTS["outtmpl"]="RYTD_TMP_%(id)s"
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[36mPLAYLIST\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						playlist(link.link,conf.files,ydl,pl.path,verbose)
@@ -499,10 +497,16 @@ def main(warn=False,verbose=False,configure=False,custom_dir=None):
 				conf.stats[False]+=1
 				if verbose:
 					sprintn("\033[41mConversion ",x,"/",l," Failed with exit code ",proc.poll(),"\033[0m")
-		try:
-			os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
-		except OSError:
-			pass
+		for dirpath, dirnames, filenames in os.walk(conf.curdir):
+			for f in filenames:
+				if f.startswith("RYTD_TMP_"):
+					try:
+						os.remove(os.path.join(dirpath,f))
+					except Exception as e:	
+						sprintn("\033[41mFailed to remove File '",f,"', because of an Error: ",e,"\033[0m")
+					else:
+						if verbose:
+							sprintn("\033[42mSuccessfully removed File ",f,"\033[0m")
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
