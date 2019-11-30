@@ -42,6 +42,7 @@ import pytube, os, io, mutagen, json,time
 from base64 import b64encode
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
+from urllib.parse import unquote as urlunquote
 import subprocess as supro
 from traceback import TracebackException as TBException
 from psutil import disk_partitions
@@ -90,12 +91,19 @@ def progrbar(percent):
 	else:
 		return "▕"+"█"*amount+" "*(50-amount)+"▏"
 
-def direct(link,files,verbose=False):
-	fname=os.path.basename(link)
-	if not fname in conf.files.values():
+def direct(link:str,files,path:str=None,verbose:bool=False):
+	if path==None:
+		path=conf.homedir
+	fname=os.path.basename(urlunquote(link))
+	if (not os.path.splitext(fname)[0] in conf.files.values()) or ("--overwrite" in sys.argv):
+		print("Downloading: %s"%(fname))
 		f=urlreq.urlopen(link)
-		with open(os.path.join(conf.homedir,fname),"wb") as download:
+		fpath=os.path.join(path,fname)
+		with open(fpath,"wb") as download:
 			download.write(f.read())
+		print("→%s"%(fpath))
+	else:
+		print("Exists: %s"%(fname))
 
 _hookdata={}
 
@@ -261,10 +269,15 @@ class Config():
 							if i!=None:
 								i=i[0]
 							else:
-								continue
+								pass
 						except KeyError:
-							continue
+							pass
+					if i==None:
+						possible=[char for char in string.ascii_letters+string.digits+"_-äöüÄÖÜß"]
+						while i in self.files.keys():
+							i="".join([random.choice(possible) for i in range(8)])
 					self.files[i]=name
+						
 	def load_from_file(self,path):
 		try:
 			conffile=open(os.path.abspath(os.path.join(self.curdir,".rytdconf")),"r")
