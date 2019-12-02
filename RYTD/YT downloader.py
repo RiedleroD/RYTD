@@ -254,7 +254,12 @@ class Config():
 			for dirpath, dirnames, filenames in os.walk(playlist.path):
 				for f in filenames:
 					name=os.path.splitext(f)[0]
-					muf=mutagen.File(os.path.join(dirpath,f))
+					fpath=os.path.join(dirpath,f)
+					try:
+						muf=mutagen.File(fpath)
+					except:
+						sprintn("Corrupt file: %s"%(fpath))
+						continue
 					if muf==None:
 						continue
 					try:
