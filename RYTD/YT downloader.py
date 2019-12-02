@@ -1,6 +1,19 @@
 #!/usr/bin/python3
 import os,sys,json
 import requests
+import mutagen
+
+if "-v" in sys.argv or "--verbose" in sys.argv:
+	vprint=print
+	def tprint(*args,**kwargs):	#terse; meaning: not verbose
+		return
+else:
+	def vprint(*args,**kwargs):
+		return
+	tprint=print
+
+curpath=os.path.abspath(os.path.dirname(__file__))
+muspath=os.path.join(curpath,os.path.pardir)
 
 class JbinC():
 	"""You insert jsonbin.io id, you get a dictionary generator back"""
@@ -67,3 +80,68 @@ class JbinC():
 		return self.read().update(*args,**kwargs)
 	def values(self,*args,**kwargs):
 		return self.read().values(*args,**kwargs)
+
+class File():
+	def __init__(self,fpath:str,id:str,title:str=None):
+		self.fpath=os.path.abspath(fpath)
+		self.fname=os.path.basename(self.fpath)
+		self.name,self.ext=os.path.splitext(self.fname)
+		self.path=os.path.dirname(self.fpath)
+		self.id=id
+		if title==None:
+			self.title=self.name
+		else:
+			self.title=title
+
+class FileFinder():
+	"""Finds files that were downloaded by RYTD."""
+	def __init__(self):
+		self.searchfiles()
+	def append(self,f:File):
+		assert type(f)==File,"argument f has to be instance of File"
+		self.files.append(f)
+	def __getitem__(self,index:(str,int)):
+		if type(index)==str:
+			result=[f for f in self.files if f.id==index]
+			if result==[]:
+				raise KeyError(index)
+			else:
+				return result[0]
+		elif type(index)==int:
+			return self.files[index]
+	def searchfiles(self):
+		self.files=[]
+		for dirpath,dirnames,filenames in os.walk(muspath):
+			for f in filenames:
+				filepath=os.path.join(dirpath,f)
+				try:
+					file=mutagen.File(filepath)
+				except mutagen.MutagenError:
+					print("\033[31mFound corrupt file: %s\033[0m"%filepath)
+				if file==None:
+					continue
+				else:
+					tags=dict(file.tags)
+					try:
+						title=tags["title"][0]
+					except (KeyError,IndexError):
+						title=None
+					try:
+						self.files.append(File(filepath,tags["rytdid"][0],title))
+					except KeyError:
+						pass
+		vprint("Found Files:",*self.filepaths(),sep="\n  ")
+	def filenames(self):
+		return [f.fname for f in self.files]
+	def filepaths(self):
+		return [f.fpath for f in self.files]
+	def __iter__(self):
+		return iter(self.files)
+
+class Downloader():
+	def __init__(self):
+		self.files=FileFinder()
+		self.jbinc=JbinC()
+
+ff=FileFinder()
+
