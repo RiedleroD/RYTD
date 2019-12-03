@@ -130,18 +130,34 @@ class FileFinder():
 						self.files.append(File(filepath,tags["rytdid"][0],title))
 					except KeyError:
 						pass
-		vprint("Found Files:",*self.filepaths(),sep="\n  ")
+		vprint("Found Files:",*["%s:  %s"%(i,fpath) for i,fpath in enumerate(self.filepaths())],sep="\n")
 	def filenames(self):
 		return [f.fname for f in self.files]
 	def filepaths(self):
 		return [f.fpath for f in self.files]
+	def files(self):
+		return [*self.files]
 	def __iter__(self):
 		return iter(self.files)
 
 class Downloader():
 	def __init__(self):
-		self.files=FileFinder()
+		self.ff=FileFinder()
 		self.jbinc=JbinC()
 
-ff=FileFinder()
+class Config():
+	def __init__(self):
+		self.data={}
+		self.paths=[]
+		self.load()
+	def load(self,fpath:str=os.path.join(curpath,".rytdconf")):
+		fpath=os.path.abspath(fpath)
+		with open(fpath) as f:
+			self.data.update(json.load(f))
+			vprint("Loaded config file: %s"%(fpath))
+		if not os.path.samefile(self.data["conffile"],fpath):
+			self.load(self.data["conffile"])
+		self.paths.append(fpath)
+
+conf=Config()
 
