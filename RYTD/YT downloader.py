@@ -2,6 +2,7 @@
 import os,sys,json
 import requests
 import mutagen
+import youtube_dl
 
 if "-v" in sys.argv or "--verbose" in sys.argv:
 	vprint=print
@@ -144,6 +145,20 @@ class Downloader():
 	def __init__(self):
 		self.ff=FileFinder()
 		self.jbinc=JbinC()
+		self.set_default_opts()
+	def set_default_opts(self):
+		self.opts={
+			'format':"bestaudio/best",
+			'postprocessors':[{'key':"FFmpegExtractAudio",'preferredcodec':conf.codec}],
+			'logger':Logger(),
+			'progress_hooks':[self.progrhook]}
+	def progrhook(self,d:dict):
+		print(d)
+
+class Logger():
+	debug=vprint
+	warning=vprint
+	error=print
 
 class Config():
 	def __init__(self):
@@ -155,9 +170,15 @@ class Config():
 		with open(fpath) as f:
 			self.data.update(json.load(f))
 			vprint("Loaded config file: %s"%(fpath))
-		if not os.path.samefile(self.data["conffile"],fpath):
-			self.load(self.data["conffile"])
+		if not os.path.samefile(self.conffile,fpath):
+			self.load(self.data.conffile)
 		self.paths.append(fpath)
+	def __getattr__(self,index:str):
+		try:
+			return self.__dict__[index]
+		except KeyError:
+			return self.data[index]
 
 conf=Config()
+down=Downloader()
 
