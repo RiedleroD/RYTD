@@ -155,7 +155,7 @@ def singvidhook(d):
 def playlist(link,files,ydl,path,verbose=False):
 	global curprocs
 	sprintr("Checking...")
-	links=pytube.Playlist("https://youtube.com/playlist?list="+link).parse_links()
+	links=pytube.Playlist("https://youtube.com/playlist?list="+link).video_urls
 	if verbose:
 		sprintn(links)
 	for link in links:
