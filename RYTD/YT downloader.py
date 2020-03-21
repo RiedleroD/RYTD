@@ -144,7 +144,6 @@ def singvidhook(d):
 		sprint("\033[s\033[46m[Downloading]\033[0m ",eta," ",progrbar(percent),end="    \033[u")
 	elif stat=="finished":
 		sprintn("\033[42m[Finished]\033[0m ",elapsed,"  ")
-		conf.stats[True]+=1
 		try:
 			del _hookdata["total_bytes"]
 		except KeyError:
@@ -165,18 +164,18 @@ def playlist(link,files,ydl,path,verbose=False):
 		else:
 			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i," : \033[7m[Checking...]\033[27m\033[13D")
 		if (not i in conf.files) or ("--overwrite" in sys.argv):
-			for proc in curprocs:
+			for i,proc in enumerate(curprocs):
 				procstate=proc.poll()
 				if procstate==0:
 					conf.stats[True]+=1
 					if verbose:
 						sprintn("\033[42mConversion Succeeded\033[0m")
-					del proc
+					del curprocs[i]
 				elif procstate!=None:
 					conf.stats[False]+=1
 					if verbose:
 						sprintn("\033[41mConversion Failed\033[0m")
-					del proc
+					del curprocs[i]
 			if os.path.exists(os.path.join(conf.curdir,"RYTD_TMP")):
 				try:
 					os.remove(os.path.join(conf.curdir,"RYTD_TMP"))
@@ -189,6 +188,7 @@ def playlist(link,files,ydl,path,verbose=False):
 				conf.stats[False]+=1
 				raise KeyboardInterrupt()
 			except Exception as e:
+				conf.stats[False]+=1
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
@@ -282,7 +282,6 @@ class Config():
 						while i in self.files.keys():
 							i="".join([random.choice(possible) for i in range(8)])
 					self.files[i]=name
-						
 	def load_from_file(self,path):
 		try:
 			conffile=open(os.path.abspath(os.path.join(self.curdir,".rytdconf")),"r")
@@ -360,7 +359,6 @@ Aviable commands:
 						f.write("{}")
 					except OSError:
 						sprintn("Couldn't write to file.")
-					
 			elif command=="":			#empty string
 				pass
 			elif command.startswith("["):#brackets
@@ -383,7 +381,6 @@ Aviable commands:
 			for link in playlist:
 				links[link.link]=link.typ
 			playlists[playlist.f]=links
-			
 		sett={"conffile":self.conffile,
 			 "playlists":list(playlists)}
 		conffile=open(self.conffile,"w+")
@@ -520,7 +517,7 @@ def main(warn=False,verbose=False,configure=False,custom_dir=None):
 				if f.startswith("RYTD_TMP_"):
 					try:
 						os.remove(os.path.join(dirpath,f))
-					except Exception as e:	
+					except Exception as e:
 						sprintn("\033[41mFailed to remove File '",f,"', because of an Error: ",e,"\033[0m")
 					else:
 						if verbose:
