@@ -157,13 +157,13 @@ def playlist(link,files,ydl,path,verbose=False):
 	links=pytube.Playlist("https://youtube.com/playlist?list="+link).video_urls
 	if verbose:
 		sprintn(links)
-	for link in links:
-		i=link.split("watch?v=")[-1]
+	for j,link in enumerate(links):
+		id=link.split("watch?v=")[-1]
 		if verbose:
-			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43mhttps://youtu.be/",i,"\033[49m ")
+			sprintn("\n\033[44m",links.index(link)+1,"/",len(links),"\033[49m\n\033[43mhttps://youtu.be/",id,"\033[49m ")
 		else:
-			sprint(links.index(link)+1,"/",len(links),": https://youtu.be/",i," : \033[7m[Checking...]\033[27m\033[13D")
-		if (not i in conf.files) or ("--overwrite" in sys.argv):
+			sprint(j+1,"/",len(links),": https://youtu.be/",id," : \033[7m[Checking...]\033[27m\033[13D")
+		if (not id in conf.files) or ("--overwrite" in sys.argv):
 			for i,proc in enumerate(curprocs):
 				procstate=proc.poll()
 				if procstate==0:
@@ -183,7 +183,7 @@ def playlist(link,files,ydl,path,verbose=False):
 					if verbose:
 						sprintn("\033[41mFailed to delete temp file (",os.path.join(conf.curdir,"RYTD_TMP"),")\033[0m")
 			try:
-				 info_dict=ydl.extract_info(os.path.join("https://youtu.be",i))
+				 info_dict=ydl.extract_info(os.path.join("https://youtu.be",id))
 			except KeyboardInterrupt:
 				conf.stats[False]+=1
 				raise KeyboardInterrupt()
@@ -220,9 +220,7 @@ def playlist(link,files,ydl,path,verbose=False):
 					command+=["-metadata","artist="+info_dict["uploader"]]
 				command.append(os.path.join(path,safename(info_dict["title"])+".opus"))
 				if verbose:
-					sprint("[")
-					sprint(*command,sep=",")
-					sprintn("]")
+					sprint("[ffmpeg",*command[1:],sep=",",end="]\n")
 				curprocs.append(supro.Popen(command,stdin=supro.PIPE))
 				if verbose:
 					sprintn()
