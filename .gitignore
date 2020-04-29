@@ -1,8 +1,1 @@
-*
-!**.py
-!RYTD/
-!Readme.md
-!default.rpl
-!.rytdconf
-!.gitignore
-!RYTD/Logo.png
+__pycache__/
