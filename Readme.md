@@ -13,4 +13,4 @@ RYTD is an automated music downloader, supporting [a few websites](http://ytdl-o
 
 ### Usage	
 
-It configures itself at first startup, so you don't have to do much.
+You have to configure the program with -c. There are 

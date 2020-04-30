@@ -6,38 +6,31 @@ if __name__=="__main__":
 	if "--help" in sys.argv or "-h" in sys.argv or "?" in sys.argv:
 		print("""HELP
 
-	--configure | -c | ¢ | Triggers configuration and quits after this.
-	--help      | -h | ? | Triggers help and quits.
-	--overwrite | -o | ø | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
-	--directory	| -d | ð | Overrides the standard download directory with the path specified in the next argument.
-	--warnings  | -w | ! | Prints ocurring warnings.
-	--verbose   | -v | … | Verbose.""")
+	--configure | -c | Triggers configuration and quits after this.
+	--help      | -h | Triggers help and quits.
+	--rewrite   | -r | Overwrites all previously downloaded files (WARNING: This may result in really long waiting and massive Data usage.)
+	--warnings  | -w | Prints ocurring warnings.
+	--verbose   | -v | Verbose.""")
 		quit()
-	if "--configure" in sys.argv or "-c" in sys.argv or "¢" in sys.argv:
+	if "--configure" in sys.argv or "-c" in sys.argv:
 		configure=True
 		print("CONFIGURE")
 	else:
 		configure=False
-	if "--verbose" in sys.argv or "-v" in sys.argv or "…" in sys.argv:
+	if "--verbose" in sys.argv or "-v" in sys.argv:
 		verbose=True
 		print("VERBOSE")
 	else:
 		verbose=False
-	if "--warnings" in sys.argv or "-w" in sys.argv or "!" in sys.argv:
+	if "--warnings" in sys.argv or "-w" in sys.argv:
 		warn=True
 	else:
 		warn=False
-	if "--directory" in sys.argv:
-		custom_dir=sys.argv[sys.argv.index("--directory")+1]
-	elif "-d" in sys.argv:
-		custom_dir=sys.argv[sys.argv.index("-d")+1]
-		print("Switched to custom directory \"",custom_dir,"\"",sep="")
-	elif "ð" in sys.argv:
-		custom_dir=sys.argv[sys.argv.index("ð")+1]
-	else:
-		custom_dir=None
-	if verbose:
-		print("IMPORTING MODULES")
+else:
+	verbose = warn = configure = False
+
+if verbose:
+	print("IMPORTING MODULES")
 import pytube, os, io, mutagen, json,time
 from base64 import b64encode
 from youtube_dl import YoutubeDL as YDL
@@ -232,12 +225,9 @@ def playlist(link,files,ydl,path,verbose=False):
 			conf.stats[None]+=1
 
 class Config():
-	def __init__(self,custom_dir):
+	def __init__(self):
 		self.os=os.name
-		if custom_dir==None:
-			self.curdir=os.path.abspath(os.path.dirname(__file__))
-		else:
-			self.curdir=os.path.abspath(os.path.dirname(custom_dir))
+		self.curdir=os.path.abspath(os.path.dirname(__file__))
 		os.chdir(self.curdir)
 		self.links=[]
 		self.files={}
@@ -301,7 +291,7 @@ class Config():
 			try:
 				linkdict=json.load(plfile)
 			except json.decoder.JSONDecodeError:
-				raise ValueError("Corrupt Config File. (hint: it's json, get it together.)")
+				raise ValueError("Corrupt Config File.")
 			else:
 				links=[]
 				for link,typ in linkdict.items():
@@ -313,32 +303,47 @@ class Config():
 		inpot=""
 		curpl=0
 		sprintn("""
-Enter as many lines as you want like this:
-[command] [argument]
-
 Aviable commands:
-	new
-		creates a new playlist in the path specified after that
-	add
-		adds whatever comes after it to the currently selected playlist
-	select
-		selects the playlist in the specified path
-	reset
-		deletes all playlists
-	end
-		saves the configuration and exits
+  new [path]
+    creates a new playlist in the path specified and selects it
+    Example:
+      new /home/riedler/Music/hardbass.rpl
+  add [link/id]
+    adds whatever comes after it to the currently selected playlist
+    Example:
+      add hKRUPYrAQoE
+  select [path]
+    selects the playlist in the specified path for adding songs
+    Example:
+      select /home/riedler/Moms Music/list.rpl
+  reset
+    deletes all playlists (recommended for first install)
+  done
+    saves the configuration and exits
 """)
-		while not inpot.startswith("end"):
-			if " " in inpot or "\t" in inpot:
-				try:
-					command,argument=inpot.split()
-				except ValueError:
-					sprintn("Couldn't get command and/or argument")
-			else:
-				command=inpot
-			command=command.lower()
-			if command=="reset":		#reset
+		while True:
+			inpot=input("")
+			if len(inpot)==0:
+				continue
+			inpot=inpot.lower()
+			args=inpot.split()
+			command=args.pop(0)
+			arg=" ".join(args)
+			del args
+			if command=="done":
+				break
+			elif command=="reset":		#reset
+				removed=[]
+				for pl in self.links:
+					try:
+						os.remove(pl.f)
+					except OSError:
+						sprintn("Couldn't remove ",pl.f)
+					else:
+						removed.append(pl.f)
 				self.links=[]
+				if len(removed)>0:
+					sprintn("Removed: ",removed)
 				sprintn("Resetted")
 			elif command=="new":		#new
 				path=os.path.abspath(argument)
@@ -351,7 +356,7 @@ Aviable commands:
 				try:
 					f=open(path,"w+")
 				except OSError:
-					sprintn("Something about the path is wrong! (",path,")")
+					sprintn("Couldn't open ",path)
 				else:
 					try:
 						f.write("{}")
@@ -359,16 +364,11 @@ Aviable commands:
 						sprintn("Couldn't write to file.")
 			elif command=="":			#empty string
 				pass
-			elif command.startswith("["):#brackets
-				sprintn("No, I meant without the brackets.")
 			elif command=="add":		#add
 				self.links[curpl].append()
-				if random.randrange(0,200)==69:
-					sprintn("okay...\n...go ahead...")
 				sprintn("Added ",link," to ",self.links[curpl].path)
 			else:						#unrecognizable
-				sprintn("Invalid command:",inpot)
-			inpot=input("")
+				sprintn("Invalid command:",command)
 		self.dump()
 		quit()
 	def dump(self):
@@ -380,7 +380,7 @@ Aviable commands:
 				links[link.link]=link.typ
 			playlists[playlist.f]=links
 		sett={"conffile":self.conffile,
-			 "playlists":list(playlists)}
+			 "playlists":list(playlists.keys())}
 		conffile=open(self.conffile,"w+")
 		try:
 			json.dump(sett,conffile)
@@ -451,11 +451,11 @@ class RLinkArray(list):
 	def __len__(self,*args,**kwargs):
 		return self.links.__len__(*args,**kwargs)
 
-def main(warn=False,verbose=False,configure=False,custom_dir=None):
+def main(warn=False,verbose=False,configure=False):
 	global conf
 	if verbose:
 		sprintr("Loading Settings...")
-	conf=Config(custom_dir)
+	conf=Config()
 	conf.load()
 	if verbose:
 		sprintn("Loaded Settings    ")
@@ -523,5 +523,5 @@ def main(warn=False,verbose=False,configure=False,custom_dir=None):
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
 
 if __name__=="__main__":
-	main(configure=configure,verbose=verbose,warn=warn,custom_dir=custom_dir)
+	main(configure=configure,verbose=verbose,warn=warn)
 
