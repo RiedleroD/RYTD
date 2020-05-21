@@ -1,5 +1,6 @@
 #!usr/bin/python3
 import sys
+from getpass import getpass
 if __name__=="__main__":
 	global curprocs
 	curprocs=[]
@@ -233,8 +234,9 @@ class Config():
 		self.files={}
 		self.conffile=os.path.abspath(os.path.join(self.curdir,".rytdconf"))
 		self.stats={True:0,None:0,False:0}
+		self.ytcreds=""
 	def load(self):
-		status=self.load_from_file(self.curdir)
+		status=self.load_from_file(self.conffile)
 		self.load_files()
 		self.dump()
 	def load_files(self):
@@ -272,7 +274,7 @@ class Config():
 					self.files[i]=name
 	def load_from_file(self,path):
 		try:
-			conffile=open(os.path.abspath(os.path.join(self.curdir,".rytdconf")),"r")
+			conffile=open(path,"r")
 		except OSError:
 			self.set_tings()
 		else:
@@ -280,6 +282,8 @@ class Config():
 				sett=json.load(conffile)
 				for playlist in sett["playlists"]:
 					self.load_from_playlist(playlist)
+				if "ytcreds" in sett:
+					self.ytcreds=sett["ytcreds"]
 			finally:
 				conffile.close()
 	def load_from_playlist(self,path):
@@ -380,7 +384,8 @@ Aviable commands:
 				links[link.link]=link.typ
 			playlists[playlist.f]=links
 		sett={"conffile":self.conffile,
-			 "playlists":list(playlists.keys())}
+			 "playlists":list(playlists.keys()),
+			 "ytcreds":self.ytcreds}
 		conffile=open(self.conffile,"w+")
 		try:
 			json.dump(sett,conffile)
@@ -391,11 +396,11 @@ Aviable commands:
 			try:
 				json.dump(links,plfile)
 			except KeyboardInterrupt:
-				print("DONT FUCKING DO THAT, IT'S VERY FUCKING FUCK FOR THE CONFIG FILE")
+				sprintn("DONT FUCKING DO THAT, IT'S VERY FUCKING FUCK FOR THE CONFIG FILE")
 				try:
 					json.dump(links,plfile)
 				except KeyboardInterrupt:
-					print("ok then. It's potentially corrupted now.\nI won't help you, you are fucking stupid.")
+					sprintn("ok then. It's potentially corrupted now.\nI won't help you, you are fucking stupid.")
 					quit()
 			finally:
 				plfile.close()
@@ -463,15 +468,23 @@ def main(warn=False,verbose=False,configure=False):
 		conf.set_tings()
 		quit()
 	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True}
+	ytpass=None
 	try:
 		for pl in conf.links:
 			sprintn(conf.links.index(pl)+1,"/",len(conf.links),":\033[47m\033[30m",pl.f,"\033[0m")
 			for link in pl:
 				if link.typ=="yt":
 					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title)s.%(ext)s")
+					if len(conf.ytcreds)>0:
+						YDL_OPTS["username"]=conf.ytcreds
+						if ytpass==None:
+							ytpass=getpass("So what's your password then? (it won't get stored)\n")
+						YDL_OPTS["password"]=ytpass
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[35mVIDEO\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						ydl.download([os.path.join("https://youtu.be",link.link)])
+					del YDL_OPTS["username"]
+					del YDL_OPTS["password"]
 				elif link.typ=="xx":
 					YDL_OPTS["outtmpl"]=os.path.join(pl.path,"%(title)s.%(ext)s")
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[34mEXTERN\033[0m")
@@ -479,9 +492,16 @@ def main(warn=False,verbose=False,configure=False):
 						ydl.download([link.link])
 				elif link.typ=="pl":
 					YDL_OPTS["outtmpl"]="RYTD_TMP_%(id)s"
+					if len(conf.ytcreds)>0:
+						YDL_OPTS["username"]=conf.ytcreds
+						if ytpass==None:
+							ytpass=getpass("So what's your password then? (it won't get stored)\n")
+						YDL_OPTS["password"]=ytpass
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[36mPLAYLIST\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						playlist(link.link,conf.files,ydl,pl.path,verbose)
+					del YDL_OPTS["username"]
+					del YDL_OPTS["password"]
 				elif link.typ=="dt":
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[37mDIRECT\033[0m")
 					direct(link.link,conf.files,pl.path,verbose)
