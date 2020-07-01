@@ -32,7 +32,7 @@ else:
 
 if verbose:
 	print("IMPORTING MODULES")
-import pytube, os, io, mutagen, json,time
+import os, io, mutagen, json,time
 from base64 import b64encode
 from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
@@ -148,7 +148,13 @@ def singvidhook(d):
 def playlist(link,files,ydl,path,verbose=False):
 	global curprocs
 	sprintr("Checking...")
-	links=pytube.Playlist("https://youtube.com/playlist?list="+link).video_urls
+	try:
+		links=["https://youtube.com/watch?v="+entry["url"] for entry in ydl.extract_info("https://youtube.com/playlist?list="+link,download=False,process=False)["entries"] if entry["_type"]=="url"]
+	except Exception as e:
+		conf.stats[False]+=1
+		tbe=TBException.from_exception(e)
+		sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
+		return None
 	if verbose:
 		sprintn(links)
 	for j,link in enumerate(links):
