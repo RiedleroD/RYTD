@@ -547,6 +547,8 @@ def main(warn=False,verbose=False,configure=False):
 						if verbose:
 							sprintn("\033[42mSuccessfully removed File ",f,"\033[0m")
 		sprintn("\nDownloaded: ",conf.stats[True],"\nExisting: ",conf.stats[None],"\nFailed: ",conf.stats[False])
+		if conf.stats[False]>0:
+			sprintn("\033[91mBefore reporting an error, please make sure you have the \033[4mnewest\033[24m version of youtube-dl and rytd.\033[0m")
 
 if __name__=="__main__":
 	main(configure=configure,verbose=verbose,warn=warn)
