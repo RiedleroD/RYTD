@@ -30,6 +30,8 @@ if __name__=="__main__":
 else:
 	verbose = warn = configure = False
 
+print("\033[31mWARNING:\033[0m This is incredibly shitty software. Please do not expect a great experiene because, currently, the developer doesn't have enough time to rewrite this mess.\nIt does kinda work, but not very well.")
+
 if verbose:
 	print("IMPORTING MODULES")
 import os, io, mutagen, json,time
