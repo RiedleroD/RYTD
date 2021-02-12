@@ -149,7 +149,7 @@ def playlist(link,files,ydl,path,verbose=False):
 	global curprocs
 	sprintr("Checking...")
 	try:
-		links=["https://youtube.com/watch?v="+entry["url"] for entry in ydl.extract_info("https://youtube.com/playlist?list="+link,download=False,process=False)["entries"] if entry["_type"]=="url"]
+		links=["https://youtube.com/watch?v="+entry["url"] for entry in ydl.extract_info("https://youtube.com/playlist?list="+link,download=False,process=False)["entries"] if entry["_type"] in ("url","url_transparent")]
 	except Exception as e:
 		conf.stats[False]+=1
 		tbe=TBException.from_exception(e)
@@ -194,18 +194,22 @@ def playlist(link,files,ydl,path,verbose=False):
 			else:
 				command=[
 					"ffmpeg","-v","0","-i","RYTD_TMP_"+info_dict["id"],"-vn","-y",
-					"-metadata","copyright="+str(info_dict["license"]),
-					"-metadata","comment="+str(info_dict["description"]),
-					"-metadata","rytdid="+info_dict["id"],
-					"-metadata","title="+info_dict["title"]]
-				if info_dict["average_rating"]!=None:
-					command+=["-metadata","rating="+str(int(info_dict["average_rating"])*20)]
-				if info_dict["dislike_count"]!=None:
-					command+=["-metadata","dislikes="+str(int(info_dict["dislike_count"])*20)]
-				if info_dict["like_count"]!=None:
-					command+=["-metadata","likes="+str(int(info_dict["like_count"])*20)]
-				if info_dict["view_count"]!=None:
-					command+=["-metadata","views="+str(int(info_dict["view_count"])*20)]
+					"-metadata","rytdid="+info_dict["id"]
+				]
+				for key,val in (("copyright","license"),
+								("comment","description"),
+								("title","title"),
+								("rating","average_rating"),
+								("dislikes","dislike_count"),
+								("likes","like_count"),
+								("views","view_count"),
+								("artist","uploader"),
+								("artist","creator"),
+								("location","location"),
+								("tags","tags")):
+					if val in info_dict.keys() and info_dict[val]!=None:
+						command.append("-metadata")
+						command.append(f"{key}=\"{info_dict[val]}\"")
 				try:
 					thumbnail=get_base64image(info_dict["thumbnail"])
 				except Exception as e:
@@ -214,10 +218,6 @@ def playlist(link,files,ydl,path,verbose=False):
 						print("\033[41mCouldn't get thumbnail:",tbe.exc_type.__name__,"-",tbe._str)
 				else:
 					command+=["-metadata",b"metadata_block_picture="+thumbnail]
-				if info_dict["creator"]!=None:
-					command+=["-metadata","artist="+str(info_dict["creator"])]
-				else:
-					command+=["-metadata","artist="+info_dict["uploader"]]
 				command.append(os.path.join(path,safename(info_dict["title"])+".opus"))
 				if verbose:
 					sprint("[ffmpeg",*command[1:],sep=",",end="]\n")
@@ -226,7 +226,7 @@ def playlist(link,files,ydl,path,verbose=False):
 					sprintn()
 		else:
 			if verbose:
-				sprintn("\033[7m[Exists]\033[0m")
+				sprintn(f"\033[7m[Exists]\033[0m {conf.files[id]}")
 			else:
 				sprint("\033[s\033[7m[Exists]\033[27m",end="     \n\r")
 			conf.stats[None]+=1
@@ -473,7 +473,7 @@ def main(warn=False,verbose=False,configure=False):
 	if configure:
 		conf.set_tings()
 		quit()
-	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True}
+	YDL_OPTS={"outtmpl":"","format":"bestaudio/best","progress_hooks":[singvidhook],"logger":Logger(warn,verbose),"call_home":True,"verbose":verbose}
 	ytpass=None
 	try:
 		for pl in conf.links:
@@ -506,8 +506,10 @@ def main(warn=False,verbose=False,configure=False):
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[36mPLAYLIST\033[0m")
 					with YDL(YDL_OPTS) as ydl:
 						playlist(link.link,conf.files,ydl,pl.path,verbose)
-					del YDL_OPTS["username"]
-					del YDL_OPTS["password"]
+					if "username" in YDL_OPTS.keys():
+						del YDL_OPTS["username"]
+					if "password" in YDL_OPTS.keys():
+						del YDL_OPTS["password"]
 				elif link.typ=="dt":
 					sprintn(pl.index(link)+1,"/",len(pl),":\033[37mDIRECT\033[0m")
 					direct(link.link,conf.files,pl.path,verbose)
