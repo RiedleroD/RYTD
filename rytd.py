@@ -1,6 +1,5 @@
 #!usr/bin/python3
 import sys
-from getpass import getpass
 if __name__=="__main__":
 	global curprocs
 	curprocs=[]
@@ -41,7 +40,7 @@ import urllib.request as urlreq
 from urllib.parse import unquote as urlunquote
 import subprocess as supro
 from traceback import TracebackException as TBException
-from psutil import disk_partitions
+from getpass import getpass
 
 #
 #POSSIBLE ARGS:
@@ -194,8 +193,9 @@ def playlist(link,files,ydl,path,verbose=False):
 				tbe=TBException.from_exception(e)
 				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
 			else:
+				tmpfn="RYTD_TMP_"+info_dict["id"]
 				command=[
-					"ffmpeg","-v","0","-i","RYTD_TMP_"+info_dict["id"],"-vn","-y",
+					"ffmpeg","-v","0","-i",tmpfn,"-vn","-y",
 					"-metadata","rytdid="+info_dict["id"]
 				]
 				for key,val in (("copyright","license"),
@@ -211,7 +211,7 @@ def playlist(link,files,ydl,path,verbose=False):
 								("tags","tags")):
 					if val in info_dict.keys() and info_dict[val]!=None:
 						command.append("-metadata")
-						command.append(f"{key}=\"{info_dict[val]}\"")
+						command.append(f"{key}={info_dict[val]}")
 				try:
 					thumbnail=get_base64image(info_dict["thumbnail"])
 				except Exception as e:
@@ -220,6 +220,9 @@ def playlist(link,files,ydl,path,verbose=False):
 						print("\033[41mCouldn't get thumbnail:",tbe.exc_type.__name__,"-",tbe._str)
 				else:
 					command+=["-metadata",b"metadata_block_picture="+thumbnail]
+				if "acodec" in info_dict.keys() and info_dict["acodec"]=="opus":
+					command.append("-c:a")
+					command.append("copy")
 				command.append(os.path.join(path,safename(info_dict["title"])+".opus"))
 				if verbose:
 					sprint("[ffmpeg",*command[1:],sep=",",end="]\n")
