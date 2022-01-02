@@ -246,6 +246,7 @@ class Config():
 		self.conffile=os.path.abspath(os.path.join(self.curdir,".rytdconf"))
 		self.stats={True:0,None:0,False:0}
 		self.ytcreds=""
+		self.last_custom_key=0
 	def load(self):
 		status=self.load_from_file(self.conffile)
 		self.load_files()
@@ -279,10 +280,9 @@ class Config():
 						except KeyError:
 							pass
 					if i==None:
-						possible=[char for char in string.ascii_letters+string.digits+"_-äöüÄÖÜß"]
-						while i in self.files.keys():
-							i="".join([random.choice(possible) for i in range(8)])
+						i=self.get_custom_key()
 					self.files[i]=name
+					i=None #forgot to reset i for like 2 years and never noticed lmao
 	def load_from_file(self,path):
 		try:
 			conffile=open(path,"r")
@@ -416,6 +416,10 @@ Aviable commands:
 			finally:
 				plfile.close()
 		sprintn("Dumped settings    ")
+	def get_custom_key(self):
+		self.last_custom_key+=1
+		#youtube IDs have 11 'digits', so we can't clash with that if we use just 5 digits
+		return b64encode(self.last_custom_key.to_bytes(5,"little"))
 
 class Logger():
 	def __init__(self,warn=False,verbose=False):
