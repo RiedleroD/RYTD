@@ -35,7 +35,10 @@ if verbose:
 	print("IMPORTING MODULES")
 import os, io, mutagen, json,time
 from base64 import b64encode
-from youtube_dl import YoutubeDL as YDL
+try:
+	from yt_dlp import YoutubeDL as YDL
+except ModuleNotFoundError:
+	from youtube_dl import YoutubeDL as YDL
 import urllib.request as urlreq
 from urllib.parse import unquote as urlunquote
 import subprocess as supro
