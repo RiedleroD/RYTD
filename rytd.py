@@ -44,6 +44,7 @@ from urllib.parse import unquote as urlunquote
 import subprocess as supro
 from traceback import TracebackException as TBException
 from getpass import getpass
+from PIL import Image
 
 #
 #POSSIBLE ARGS:
@@ -72,12 +73,45 @@ def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
 def safename(s:str):
 	return s.replace("\"","'").replace("|","\u2223").replace(":","\u0589").replace("*","\u033d").replace("?","\uff1f").replace("/","\u2215").replace("\\","\uFF3C").replace("<","‹").replace(">","›")
 
-def get_base64image(link:str):
-	img=b64encode(urlreq.urlopen(link).read())
-	if len(img)<=128:
-		return img
-	else:
-		raise Exception("Image is too big")
+def get_image_embed(link: str, size: int):
+	img = urlreq.urlopen(link).read()
+	
+	imgo = Image.open(io.BytesIO(img))
+	
+	if verbose:
+		print(f"resizing image from {imgo.width}x{imgo.height} to fit into {size}x{size}")
+	
+	imgo.thumbnail((size, size))
+	if imgo.mode != 'P':
+		imgo = imgo.quantize(256)
+	
+	imgio = io.BytesIO(b'')
+	imgo.save(imgio, 'png', optimize=True)
+	BODY = imgio.getvalue()
+	
+	# 4B type of image (front cover)
+	# 4B length of mimetype (9 Bytes)
+	# 9B mimetype string
+	# 4B length of description string (0 Bytes)
+	# 0B description string
+	# 4B width of picture
+	# 4B height of picture
+	# 4B color depth in bits per pixel
+	# 4B numbers of colors in palette, or \0 if no palette
+	# 4B size of picture data in bytes
+	HEADER = \
+		int.to_bytes(3, 4) + \
+		int.to_bytes(9, 4) + \
+		b'image/png' + \
+		int.to_bytes(0, 4) + \
+		\
+		int.to_bytes(imgo.width, 4) + \
+		int.to_bytes(imgo.height, 4) + \
+		int.to_bytes(8, 4) + \
+		int.to_bytes(256, 4) + \
+		int.to_bytes(len(BODY), 4)
+	
+	return b64encode(HEADER + BODY)
 
 def progrbar(percent):
 	percent=round(percent/2,1)
@@ -216,7 +250,7 @@ def playlist(link,files,ydl,path,verbose=False):
 						command.append("-metadata")
 						command.append(f"{key}={info_dict[val]}")
 				try:
-					thumbnail=get_base64image(info_dict["thumbnail"])
+					thumbnail=get_image_embed(info_dict["thumbnail"], 128)
 				except Exception as e:
 					if verbose:
 						tbe=TBException.from_exception(e)
