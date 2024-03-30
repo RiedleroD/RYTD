@@ -1,3 +1,5 @@
+<span color="red">DO NOT USE - this is shit &amp; only works for my personal use rn</span>
+
 # **RYTD**	
 RYTD is an automated music downloader, supporting [a few websites](http://ytdl-org.github.io/youtube-dl/supportedsites.html). 	
 
