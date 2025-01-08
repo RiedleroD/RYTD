@@ -61,14 +61,14 @@ from PIL import Image
 if verbose:
 	print("DEFINING FUNCTIONS AND CLASSES")
 
-def sprint(*s:str,sep:str="",end:str="",flush:bool=True):
-	print(*s,sep=sep,end=end,flush=flush)
-def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True):
-	print(*s,sep=sep,end=end,flush=flush)
-def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True):
-	print(*s,sep=sep,end=end,flush=flush)
-def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True):
-	print(*s,sep=sep,end=end,flush=flush)
+def sprint(*s:str,sep:str="",end:str="",flush:bool=True,**kwargs):
+	print(*s,sep=sep,end=end,flush=flush,**kwargs)
+def sprintn(*s:str,sep:str="",end:str="\n\r",flush:bool=True,**kwargs):
+	print(*s,sep=sep,end=end,flush=flush,**kwargs)
+def sprintr(*s:str,sep:str="",end:str="\r",flush:bool=True,**kwargs):
+	print(*s,sep=sep,end=end,flush=flush,**kwargs)
+def sprints(*s:str,sep:str="",end:str="\r",flush:bool=True,**kwargs):
+	print(*s,sep=sep,end=end,flush=flush,**kwargs)
 
 def safename(s:str):
 	return s.replace("\"","'").replace("|","\u2223").replace(":","\u0589").replace("*","\u033d").replace("?","\uff1f").replace("/","\u2215").replace("\\","\uFF3C").replace("<","‹").replace(">","›")
@@ -191,7 +191,7 @@ def playlist(link,files,ydl,path,verbose=False):
 	except Exception as e:
 		conf.stats[False]+=1
 		tbe=TBException.from_exception(e)
-		sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
+		sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str, file=sys.stderr)
 		return None
 	if verbose:
 		sprintn(links)
@@ -228,7 +228,7 @@ def playlist(link,files,ydl,path,verbose=False):
 			except Exception as e:
 				conf.stats[False]+=1
 				tbe=TBException.from_exception(e)
-				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str)
+				sprintn("\033[41m[",tbe.exc_type.__name__,"]\033[0m ",tbe._str, file=sys.stderr)
 			else:
 				tmpfn="RYTD_TMP_"+info_dict["id"]
 				command=[
@@ -254,7 +254,7 @@ def playlist(link,files,ydl,path,verbose=False):
 				except Exception as e:
 					if verbose:
 						tbe=TBException.from_exception(e)
-						print("\033[41mCouldn't get thumbnail:",tbe.exc_type.__name__,"-",tbe._str)
+						print("\033[41mCouldn't get thumbnail:",tbe.exc_type.__name__,"-",tbe._str, file=sys.stderr)
 				else:
 					command+=["-metadata",b"metadata_block_picture="+thumbnail]
 				if "acodec" in info_dict.keys() and info_dict["acodec"]=="opus":
